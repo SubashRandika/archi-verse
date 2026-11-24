@@ -16,10 +16,12 @@ import {
   useSyncExternalStore,
 } from "react";
 import { IconButton } from "@/components/icon-button";
-import { componentsBounds, shapeBounds, type Bounds } from "@/engine/primitives";
+import type { LearningModule } from "@/content/modules";
+import { type Bounds, componentsBounds, shapeBounds } from "@/engine/primitives";
 import {
   CameraRig,
   type CameraRigHandle,
+  createLabelElements,
   LabelLayer,
   type LabelElements,
   LabelProjector,
@@ -40,11 +42,13 @@ import {
   useStudioSession,
   useStudioSessionStore,
 } from "./studio-session";
+import { allSteps, globalStepIndex, locateStep, trackSteps } from "./tracks";
 
 /** Space kept clear when framing: the header line at the top, the playback dock below. */
-const FRAME_PADDING: Padding = { top: 64, right: 48, bottom: 150, left: 48 };
+const FRAME_PADDING: Padding = { top: 72, right: 48, bottom: 150, left: 48 };
 
 const noSubscription = () => () => {};
+const readPerfFlag = () => new URLSearchParams(window.location.search).has("perf");
 
 /**
  * Labels sit above a component's top back corner: in the isometric view that is its highest
@@ -58,10 +62,19 @@ function labelAnchor(component: SceneComponent): Vec3 {
     component.position[2] + bounds.min[2],
   ];
 }
-const readPerfFlag = () => new URLSearchParams(window.location.search).has("perf");
+
+/** The step the scene shows for a session state (none in explore mode). */
+function sceneStep(
+  learningModule: LearningModule,
+  state: Pick<StudioSessionState, "mode" | "trackId" | "stepIndex">,
+) {
+  if (state.mode !== "guided") return undefined;
+  return trackSteps(learningModule, state.trackId)[state.stepIndex];
+}
 
 export default function StudioScene({ onContextLost }: { onContextLost: () => void }) {
   const learningModule = useStudioModule();
+  const trackId = useStudioSession((session) => session.trackId);
   const stepIndex = useStudioSession((session) => session.stepIndex);
   const mode = useStudioSession((session) => session.mode);
   const selectedId = useStudioSession((session) => session.selectedId);
@@ -70,13 +83,14 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
   const hover = useStudioSession((session) => session.hover);
   const reducedMotion = useReducedMotion();
   const showPerf = useSyncExternalStore(noSubscription, readPerfFlag, () => false);
+  const store = useStudioSessionStore();
 
   const compiled = useMemo(
-    () => compileTimeline(learningModule.layout, learningModule.steps, { reducedMotion }),
+    () => compileTimeline(learningModule.layout, allSteps(learningModule), { reducedMotion }),
     [learningModule, reducedMotion],
   );
 
-  const step = mode === "guided" ? learningModule.steps[stepIndex] : undefined;
+  const step = sceneStep(learningModule, { mode, trackId, stepIndex });
   const dimmed = useMemo(() => {
     if (!step) return new Set<string>();
     const focus = new Set(step.scene.focus);
@@ -87,22 +101,30 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
   const flows = useMemo(() => {
     const result = new Map<string, FlowKind>();
     for (const beat of step?.scene.beats ?? []) {
-      if (beat.type === "packet" && !result.has(beat.connection))
+      if (beat.type === "packet" && !result.has(beat.connection)) {
         result.set(beat.connection, beat.flow);
+      }
     }
     return result;
   }, [step]);
 
   const labels = useMemo<SceneLabel[]>(
     () =>
-      learningModule.layout.components.map((component) => ({
-        id: component.id,
-        text: component.label,
-        anchor: labelAnchor(component),
-        tone:
-          component.id === selectedId ? "selected" : dimmed.has(component.id) ? "dimmed" : "normal",
-      })),
-    [learningModule, selectedId, dimmed],
+      learningModule.layout.components
+        .filter((component) => !component.decorative)
+        .map((component) => ({
+          id: component.id,
+          text: component.label,
+          anchor: labelAnchor(component),
+          channel: compiled.channels.components[component.id],
+          tone:
+            component.id === selectedId
+              ? "selected"
+              : dimmed.has(component.id)
+                ? "dimmed"
+                : "normal",
+        })),
+    [learningModule, compiled, selectedId, dimmed],
   );
 
   const sceneBounds = useMemo(
@@ -111,9 +133,9 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
   );
   /** What the camera should frame: the step's components in guided mode, everything otherwise. */
   const boundsFor = useCallback(
-    (state: Pick<StudioSessionState, "mode" | "stepIndex">): Bounds => {
-      const current = learningModule.steps[state.stepIndex];
-      if (state.mode !== "guided" || !current) return sceneBounds;
+    (state: Pick<StudioSessionState, "mode" | "trackId" | "stepIndex">): Bounds => {
+      const current = sceneStep(learningModule, state);
+      if (!current) return sceneBounds;
       const ids = new Set(current.scene.frame ?? current.scene.focus);
       return (
         componentsBounds(learningModule.layout.components.filter((c) => ids.has(c.id))) ??
@@ -123,11 +145,13 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
     [learningModule, sceneBounds],
   );
 
-  const store = useStudioSessionStore();
   const rig = useRef<CameraRigHandle>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const labelElements = useRef<LabelElements>(new Map());
-  const description = `Isometric 3D diagram of ${learningModule.layout.components.map((c) => c.label).join(", ")}.`;
+  const labelElements = useRef<LabelElements>(createLabelElements());
+  const description = `Isometric 3D diagram of ${learningModule.layout.components
+    .filter((c) => !c.decorative)
+    .map((c) => c.label)
+    .join(", ")}.`;
 
   return (
     <div ref={stage} className="absolute inset-0 bg-ink" data-scene-stage="">
@@ -147,10 +171,14 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
             smooth={!reducedMotion}
             onSelect={(id) => select(id === selectedId ? null : id)}
             onHover={hover}
+            onInspectMessage={(messageId) => {
+              store.getState().pause();
+              store.getState().inspectMessage(messageId);
+            }}
           />
           <CameraRig ref={rig} sceneBounds={sceneBounds} padding={FRAME_PADDING} />
           <CameraDirector rig={rig} boundsFor={boundsFor} animate={!reducedMotion} />
-          <TimelineDriver compiled={compiled} />
+          <TimelineDriver compiled={compiled} learningModule={learningModule} />
           <LabelProjector labels={labels} elementsRef={labelElements} />
         </SceneCanvas>
       </div>
@@ -171,16 +199,22 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
 }
 
 /**
- * Keeps the GSAP timeline in step with the session store: seeks on navigation, plays and
- * pauses with the session, follows the playback speed preference, and reports the end of a
- * step back to the store.
+ * Keeps the GSAP timeline in step with the session store: seeks on navigation (or to a clean
+ * scene in explore mode), plays and pauses with the session, follows the playback speed
+ * preference, and reports the end of a step back to the store.
  *
  * Rendering: a seek requests one frame. While a step plays, the render loop keeps itself
  * running by invalidating from inside `useFrame`. Invalidating only from GSAP's own ticker
  * would restart R3F's on-demand loop a frame late each time and render every other frame
  * (30 fps instead of 60, measured in Phase 4).
  */
-function TimelineDriver({ compiled }: { compiled: CompiledTimeline }) {
+function TimelineDriver({
+  compiled,
+  learningModule,
+}: {
+  compiled: CompiledTimeline;
+  learningModule: LearningModule;
+}) {
   const store = useStudioSessionStore();
   const progress = useStepProgress();
   const invalidate = useThree((state) => state.invalidate);
@@ -196,13 +230,29 @@ function TimelineDriver({ compiled }: { compiled: CompiledTimeline }) {
         progress.set(stepProgress);
         invalidate();
       },
-      onStepEnd: (index) => store.getState().completeStep(index),
+      onStepEnd: (globalIndex) => {
+        const { trackId, index } = locateStep(learningModule, globalIndex);
+        const state = store.getState();
+        if (state.trackId === trackId) state.completeStep(index);
+      },
     });
     controller.setSpeed(usePreferencesStore.getState().playbackSpeed);
     controllerRef.current = controller;
 
     const sync = (state: StudioSessionState, previous?: StudioSessionState) => {
-      if (!previous || state.seekCount !== previous.seekCount) controller.seek(state.stepIndex);
+      const moved =
+        !previous ||
+        state.seekCount !== previous.seekCount ||
+        state.trackId !== previous.trackId ||
+        state.mode !== previous.mode;
+      if (moved) {
+        // Explore shows the clean scene: the start of the timeline, before any beat.
+        controller.seek(
+          state.mode === "guided"
+            ? globalStepIndex(learningModule, state.trackId, state.stepIndex)
+            : 0,
+        );
+      }
       const shouldPlay = state.playing && state.mode === "guided";
       if (shouldPlay && !controller.isPlaying) {
         // A finished step cannot play further: tell the store, which stops playback.
@@ -222,7 +272,7 @@ function TimelineDriver({ compiled }: { compiled: CompiledTimeline }) {
       controller.dispose();
       controllerRef.current = null;
     };
-  }, [compiled, store, progress, invalidate]);
+  }, [compiled, learningModule, store, progress, invalidate]);
 
   return null;
 }
@@ -247,6 +297,7 @@ function CameraDirector({
         if (
           state.seekCount !== previous.seekCount ||
           state.stepIndex !== previous.stepIndex ||
+          state.trackId !== previous.trackId ||
           state.mode !== previous.mode
         ) {
           rig.current?.frame(boundsFor(state), animate);

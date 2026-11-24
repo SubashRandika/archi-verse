@@ -12,8 +12,21 @@
 export type Vec3 = readonly [x: number, y: number, z: number];
 
 /** Shapes the engine knows how to draw. New kinds are added when a module needs them. */
-export const COMPONENT_KINDS = ["client", "gateway", "service", "database"] as const;
+export const COMPONENT_KINDS = [
+  "client",
+  "gateway",
+  "service",
+  "database",
+  "identity",
+  "hop",
+] as const;
 export type ComponentKind = (typeof COMPONENT_KINDS)[number];
+
+/** A named part of a component that can be busy on its own (e.g. the gateway's stations). */
+export interface ComponentStage {
+  readonly id: string;
+  readonly label: string;
+}
 
 export interface SceneComponent {
   readonly id: string;
@@ -24,14 +37,22 @@ export interface SceneComponent {
   readonly role: string;
   /** Centre of the component's footprint on the ground. */
   readonly position: Vec3;
+  /** Stages in drawing order (the shape decides how many it can show). */
+  readonly stages?: readonly ComponentStage[];
+  /** Scenery: no label, not selectable, not listed (e.g. network hops). */
+  readonly decorative?: boolean;
 }
 
 export interface SceneConnection {
   readonly id: string;
   readonly from: string;
   readonly to: string;
-  /** Ground waypoints between the two components, for L-shaped routes along the grid. */
+  /** Ground waypoints between the two components, for routes along the grid. */
   readonly via?: readonly Vec3[];
+  /** Dashed: a relationship rather than a request path (e.g. "keys cached"). */
+  readonly style?: "solid" | "dashed";
+  /** Drawn only while a step uses it. */
+  readonly hidden?: boolean;
 }
 
 export interface SceneLayout {
@@ -39,7 +60,17 @@ export interface SceneLayout {
   readonly connections: readonly SceneConnection[];
 }
 
-export type FlowKind = "request" | "response";
+export type FlowKind = "request" | "response" | "error";
+/** Colour of a busy glow: normal work, slow, failing. */
+export type ActivityTone = "active" | "warning" | "error";
+/** Persistent condition of a component, shown as a tint and an optional badge. */
+export type StatusTone = "info" | "warning" | "error" | "down";
+
+export interface ComponentStatus {
+  readonly tone: StatusTone;
+  /** Short text shown next to the component, e.g. "429" or "57 of 60 left". */
+  readonly badge?: string;
+}
 
 /**
  * One thing that happens during a step. Beats in a step run one after another, in order.
@@ -52,13 +83,31 @@ export type Beat =
       readonly flow: FlowKind;
       /** Travel from the connection's `to` end back to its `from` end. */
       readonly reverse?: boolean;
+      /** Appear at the start of the route and wait there instead of travelling. */
+      readonly stay?: boolean;
+      readonly duration?: number;
+      /** Message id (module text) shown when the packet is inspected. */
+      readonly message?: string;
+    }
+  | {
+      /** A component (or one of its stages) works on something: it glows while busy. */
+      readonly type: "process";
+      readonly component: string;
+      readonly stage?: string;
+      readonly tone?: ActivityTone;
       readonly duration?: number;
     }
   | {
-      /** A component works on something: it glows while busy. */
-      readonly type: "process";
-      readonly component: string;
+      /** A connection lights up without anything travelling (health check, cached keys). */
+      readonly type: "signal";
+      readonly connection: string;
       readonly duration?: number;
+    }
+  | {
+      /** Sets (or clears, with `null`) a component's status. Instant; lasts until the step ends. */
+      readonly type: "status";
+      readonly component: string;
+      readonly status: ComponentStatus | null;
     }
   | { readonly type: "wait"; readonly duration: number };
 
@@ -68,8 +117,10 @@ export interface StepScene {
   readonly focus: readonly string[];
   /** Components the camera frames. Defaults to `focus`. */
   readonly frame?: readonly string[];
+  /** State at the start of the step (e.g. an instance already down in a scenario). */
+  readonly initial?: { readonly status?: Readonly<Record<string, ComponentStatus>> };
   readonly beats: readonly Beat[];
 }
 
 /** Default beat durations (seconds at 1× speed). */
-export const BEAT_DEFAULTS = { packet: 1.6, process: 1.2 } as const;
+export const BEAT_DEFAULTS = { packet: 1.6, process: 1.2, signal: 0.8 } as const;

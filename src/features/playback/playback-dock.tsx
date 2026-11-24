@@ -16,6 +16,8 @@ import {
   type PlaybackSpeed,
   usePreferencesStore,
 } from "@/features/preferences/preferences-store";
+import type { LearningModule, ModuleScenario, ModuleStep } from "@/content/modules";
+import { MAIN_TRACK } from "@/features/studio/session-store";
 import {
   useCurrentStep,
   useStepProgress,
@@ -42,7 +44,15 @@ function CellLabel({ children }: { children: string }) {
  */
 export function PlaybackDock() {
   const learningModule = useStudioModule();
-  const { step: currentStep, chapter: currentChapter, index: stepIndex, count } = useCurrentStep();
+  const {
+    step: currentStep,
+    chapter: currentChapter,
+    scenario,
+    index: stepIndex,
+    count,
+    steps: trackSteps,
+  } = useCurrentStep();
+  const switchTrack = useStudioSession((session) => session.switchTrack);
   const playing = useStudioSession((session) => session.playing);
   const stepComplete = useStudioSession((session) => session.stepComplete);
   const togglePlaying = useStudioSession((session) => session.togglePlaying);
@@ -100,11 +110,9 @@ export function PlaybackDock() {
       {/* Timeline */}
       <Cell className="order-1 col-span-3 border-b px-3 pt-2 pb-2.5 @3xl:order-2 @3xl:col-span-1 @3xl:border-b-0 @3xl:border-l">
         <ol aria-label="Timeline" className="flex w-full gap-2">
-          {learningModule.chapters.map((chapter) => {
-            const chapterIsCurrent = chapter.id === currentStep.chapterId;
-            const chapterSteps = learningModule.steps.filter(
-              (step) => step.chapterId === chapter.id,
-            );
+          {timelineChapters(learningModule, scenario, trackSteps).map((chapter) => {
+            const chapterIsCurrent = chapter.id === currentChapter.id;
+            const chapterSteps = chapter.steps;
             return (
               <li
                 key={chapter.id}
@@ -122,7 +130,7 @@ export function PlaybackDock() {
                 </span>
                 <ol className="flex gap-0.5">
                   {chapterSteps.map((step) => {
-                    const index = learningModule.steps.indexOf(step);
+                    const index = trackSteps.indexOf(step);
                     const state =
                       index < stepIndex ? "done" : index === stepIndex ? "current" : "upcoming";
                     return (
@@ -173,14 +181,106 @@ export function PlaybackDock() {
         </span>
       </Cell>
 
-      {/* Speed */}
-      <Cell className="order-4 flex-col items-start justify-center gap-0.5 border-l px-2 py-2">
-        <span className="px-1">
-          <CellLabel>Speed</CellLabel>
-        </span>
-        <SpeedMenu speed={speed} onChange={setSpeed} />
+      {/* Scenario and speed */}
+      <Cell className="order-4 items-stretch gap-1 border-l px-2 py-2">
+        <div className="flex flex-col justify-center gap-0.5">
+          <span className="px-1">
+            <CellLabel>Scenario</CellLabel>
+          </span>
+          <ScenarioMenu
+            learningModule={learningModule}
+            current={scenario?.id ?? null}
+            onChange={(id) => {
+              if (id) switchTrack(id);
+              else {
+                const branch = learningModule.steps.findIndex(
+                  (step) => step.id === scenario?.branchesFromStepId,
+                );
+                switchTrack(MAIN_TRACK, Math.max(branch, 0));
+              }
+            }}
+          />
+        </div>
+        <div className="flex flex-col justify-center gap-0.5">
+          <span className="px-1">
+            <CellLabel>Speed</CellLabel>
+          </span>
+          <SpeedMenu speed={speed} onChange={setSpeed} />
+        </div>
       </Cell>
     </section>
+  );
+}
+
+interface TimelineChapter {
+  readonly id: string;
+  readonly title: string;
+  readonly steps: readonly ModuleStep[];
+}
+
+/** Chapters of the current track: the module's chapters, or the scenario as one chapter. */
+function timelineChapters(
+  learningModule: LearningModule,
+  scenario: ModuleScenario | undefined,
+  steps: readonly ModuleStep[],
+): TimelineChapter[] {
+  if (scenario) return [{ id: scenario.id, title: scenario.title, steps }];
+  return learningModule.chapters.map((chapter) => ({
+    ...chapter,
+    steps: learningModule.steps.filter((step) => step.chapterId === chapter.id),
+  }));
+}
+
+const MAIN_PATH_VALUE = "main-path";
+
+/** Main path or one of the module's failure scenarios. */
+function ScenarioMenu({
+  learningModule,
+  current,
+  onChange,
+}: {
+  learningModule: LearningModule;
+  current: string | null;
+  onChange: (scenarioId: string | null) => void;
+}) {
+  const currentTitle =
+    learningModule.scenarios.find((scenario) => scenario.id === current)?.title ?? "Main path";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-label={`Scenario, ${currentTitle}`}
+            className="h-6 max-w-36 justify-start px-1 text-caption font-medium text-paper"
+          />
+        }
+      >
+        <span className="truncate">{currentTitle}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end" className="w-72">
+        <DropdownMenuRadioGroup
+          value={current ?? MAIN_PATH_VALUE}
+          onValueChange={(value) => onChange(value === MAIN_PATH_VALUE ? null : String(value))}
+        >
+          <DropdownMenuRadioItem value={MAIN_PATH_VALUE} closeOnClick>
+            <span className="flex flex-col">
+              <span>Main path</span>
+              <span className="text-label text-graphite">The request succeeds</span>
+            </span>
+          </DropdownMenuRadioItem>
+          {learningModule.scenarios.map((scenario) => (
+            <DropdownMenuRadioItem key={scenario.id} value={scenario.id} closeOnClick>
+              <span className="flex flex-col">
+                <span>{scenario.title}</span>
+                <span className="text-label text-graphite">{scenario.summary}</span>
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

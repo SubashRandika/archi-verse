@@ -4,44 +4,41 @@ import { type ReactNode, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  type ExplanationLevel,
-  usePreferencesStore,
-} from "@/features/preferences/preferences-store";
+import type { ComponentDoc, ExplanationLevel, ModuleText } from "@/content/modules";
+import { usePreferencesStore } from "@/features/preferences/preferences-store";
+import { CompletionToggle } from "@/features/progress/completion-toggle";
+import { useCurrentConcept } from "@/features/studio/current-concept";
+import { MAIN_TRACK } from "@/features/studio/session-store";
 import {
   useCurrentStep,
   useStudioModule,
   useStudioSession,
 } from "@/features/studio/studio-session";
-import { ExplanationBlocks } from "./explanation-blocks";
-import {
-  type PreviewComponentDoc,
-  previewComponentDocs,
-  previewStepExplanations,
-} from "./placeholder";
+import { ExplanationBlocks, MessageFigure, TermList } from "./explanation-blocks";
 
 type InspectorTab = "step" | "component";
 
 /**
  * Learning inspector: explanation of the current step and details of the selected
  * component, at the chosen explanation level. Switching level never resets the tab or step.
- * Selecting a component (in the scene or the component list) opens its details.
+ *
+ * `text` is the module's text, delivered by the inspector route as data (not bundled).
  */
-export function InspectorPanel() {
-  const { step: currentStep } = useCurrentStep();
+export function InspectorPanel({ text }: { text: ModuleText }) {
   const selectedId = useStudioSession((session) => session.selectedId);
+  const inspectedMessage = useStudioSession((session) => session.inspectedMessage);
   const level = usePreferencesStore((state) => state.explanationLevel);
   const setLevel = usePreferencesStore((state) => state.setExplanationLevel);
   const [tab, setTab] = useState<InspectorTab>("step");
 
-  // A new selection brings its details into view (adjusting state during render, no effect).
-  const [shownSelection, setShownSelection] = useState(selectedId);
-  if (selectedId !== shownSelection) {
-    setShownSelection(selectedId);
+  // A new selection brings its details into view (adjusting state during render, no effect):
+  // a component opens the Component tab, an inspected packet the Step tab (its message).
+  const [shown, setShown] = useState({ selectedId, inspectedMessage });
+  if (selectedId !== shown.selectedId || inspectedMessage !== shown.inspectedMessage) {
+    setShown({ selectedId, inspectedMessage });
     if (selectedId) setTab("component");
+    else if (inspectedMessage) setTab("step");
   }
-
-  const blocks = previewStepExplanations[currentStep.id]?.[level];
 
   return (
     <aside aria-label="Learning inspector" className="flex h-full min-w-0 flex-col bg-hull">
@@ -82,18 +79,10 @@ export function InspectorPanel() {
 
         <ScrollArea className="min-h-0 flex-1">
           <TabsContent value="step" className="px-5 pt-5 pb-8">
-            <h2 className="mb-4 text-title font-semibold text-paper">{currentStep.title}</h2>
-            {blocks ? (
-              <ExplanationBlocks blocks={blocks} />
-            ) : (
-              <p className="text-reading text-graphite">
-                The explanation for this step is written with the full API Gateway module.
-              </p>
-            )}
+            <StepTab text={text} level={level} inspectedMessage={inspectedMessage} />
           </TabsContent>
-
           <TabsContent value="component" className="px-5 pt-5 pb-8">
-            <ComponentTab selectedId={selectedId} level={level} />
+            <ComponentTab text={text} selectedId={selectedId} level={level} />
           </TabsContent>
         </ScrollArea>
       </Tabs>
@@ -101,18 +90,94 @@ export function InspectorPanel() {
   );
 }
 
+function StepTab({
+  text,
+  level,
+  inspectedMessage,
+}: {
+  text: ModuleText;
+  level: ExplanationLevel;
+  inspectedMessage: string | null;
+}) {
+  const { step, scenario, index, count } = useCurrentStep();
+  const trackId = useStudioSession((session) => session.trackId);
+  const stepText = text.steps[step.id];
+  const messageId = inspectedMessage ?? stepText?.message;
+  const message = messageId ? text.messages[messageId] : undefined;
+  const terms = (stepText?.terms ?? []).flatMap((id) => text.glossary[id] ?? []);
+  const isFinalStep = trackId === MAIN_TRACK && index === count - 1;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <header>
+        {scenario && <p className="mb-1 text-label text-graphite">Scenario: {scenario.title}</p>}
+        <h2 className="text-title font-semibold text-paper">{step.title}</h2>
+      </header>
+      {stepText && <ExplanationBlocks blocks={stepText.explanation[level]} />}
+      {message && (
+        <section aria-label="Message in flight" className="flex flex-col gap-2">
+          <h3 className="text-caption font-medium text-graphite">
+            {inspectedMessage ? "Inspected message" : "Message in flight"}
+          </h3>
+          <MessageFigure message={message} highlighted={Boolean(inspectedMessage)} />
+        </section>
+      )}
+      <TermList terms={terms} />
+      {isFinalStep && <FinishSection />}
+    </div>
+  );
+}
+
+/** End of the main path: scenarios to try next, and marking the concept complete. */
+function FinishSection() {
+  const learningModule = useStudioModule();
+  const { concept } = useCurrentConcept();
+  const switchTrack = useStudioSession((session) => session.switchTrack);
+
+  return (
+    <section
+      aria-labelledby="finish-heading"
+      className="flex flex-col gap-3 rounded-md border border-rule-strong bg-hull-raised p-4"
+    >
+      <h3 id="finish-heading" className="text-caption font-medium text-paper">
+        You’ve followed a request from start to finish
+      </h3>
+      <p className="text-caption text-paper/85">See what happens when something goes wrong:</p>
+      <ul className="flex flex-col gap-1">
+        {learningModule.scenarios.map((scenario) => (
+          <li key={scenario.id}>
+            <button
+              type="button"
+              onClick={() => switchTrack(scenario.id)}
+              className="w-full rounded-sm px-2 py-1.5 text-left hover:bg-hull-hover"
+            >
+              <span className="block text-caption font-medium text-paper">{scenario.title}</span>
+              <span className="block text-label text-graphite">{scenario.summary}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex items-center justify-between gap-3 border-t border-rule pt-3">
+        <p className="text-caption text-paper/85">Done with this concept?</p>
+        <CompletionToggle conceptId={concept.id} />
+      </div>
+    </section>
+  );
+}
+
 function ComponentTab({
+  text,
   selectedId,
   level,
 }: {
+  text: ModuleText;
   selectedId: string | null;
   level: ExplanationLevel;
 }) {
   const learningModule = useStudioModule();
   const select = useStudioSession((session) => session.select);
-  const component = learningModule.layout.components.find(
-    (candidate) => candidate.id === selectedId,
-  );
+  const selectable = learningModule.layout.components.filter((c) => !c.decorative);
+  const component = selectable.find((candidate) => candidate.id === selectedId);
 
   if (!component) {
     return (
@@ -121,7 +186,7 @@ function ComponentTab({
           Select a component in the scene to see what it does, or pick one here.
         </p>
         <ul className="flex flex-col gap-1">
-          {learningModule.layout.components.map((candidate) => (
+          {selectable.map((candidate) => (
             <li key={candidate.id}>
               <button
                 type="button"
@@ -138,7 +203,7 @@ function ComponentTab({
     );
   }
 
-  const doc = previewComponentDocs[component.id];
+  const doc = text.components[component.id];
   if (doc) return <ComponentDetails doc={doc} level={level} />;
   return (
     <article className="flex flex-col gap-3">
@@ -146,14 +211,11 @@ function ComponentTab({
         <h2 className="text-title font-semibold text-paper">{component.label}</h2>
         <p className="text-caption text-graphite">{component.role}</p>
       </header>
-      <p className="text-reading text-graphite">
-        Details for this component are written with the full API Gateway module.
-      </p>
     </article>
   );
 }
 
-function ComponentDetails({ doc, level }: { doc: PreviewComponentDoc; level: ExplanationLevel }) {
+function ComponentDetails({ doc, level }: { doc: ComponentDoc; level: ExplanationLevel }) {
   return (
     <article className="flex flex-col gap-6">
       <header>
@@ -161,6 +223,10 @@ function ComponentDetails({ doc, level }: { doc: PreviewComponentDoc; level: Exp
         <p className="text-caption text-graphite">{doc.kind}</p>
         <p className="mt-3 text-reading text-paper/90">{doc.purpose[level]}</p>
       </header>
+
+      <Section title="How it works">
+        <p className="text-caption text-paper/90">{doc.howItWorks}</p>
+      </Section>
 
       <Section title="Responsibilities">
         <BulletList items={doc.responsibilities} />
@@ -193,6 +259,10 @@ function ComponentDetails({ doc, level }: { doc: PreviewComponentDoc; level: Exp
 
       <Section title="Common technologies">
         <ChipList items={doc.technologies} />
+      </Section>
+
+      <Section title="Examples">
+        <BulletList items={doc.examples} />
       </Section>
 
       <Section title="Trade-offs">

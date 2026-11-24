@@ -1,7 +1,8 @@
 /**
  * Scene colours: the "hybrid" look approved in the Phase 4 look-dev spike (ADR-0006).
- * Lit solid bodies with paper outlines (legible form), plus a glow in a flow colour on
- * whatever is active or selected (focus). Flow colours mirror the CSS tokens in globals.css.
+ * Lit solid bodies with paper outlines (legible form), plus a glow in a flow colour on whatever
+ * is active, selected or in trouble. Flow colours mirror the CSS tokens in globals.css and
+ * carry meaning only.
  */
 export const SCENE_COLORS = {
   ink: "#0f1b2d",
@@ -15,9 +16,12 @@ export const SCENE_COLORS = {
   body: "#25395a",
   bodyDimmed: "#172338",
   bodyActive: "#1f4f78",
+  bodyDown: "#3a1f2c",
 
   request: "#4cc9f0",
   response: "#3dd68c",
+  warning: "#f5b83d",
+  error: "#f2577a",
   selection: "#a78bfa",
 } as const;
 

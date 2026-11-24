@@ -63,8 +63,22 @@ const eslintConfig = defineConfig([
     rules: { "react-hooks/immutability": "off" },
   },
   {
-    files: ["src/features/**/*.{ts,tsx}"],
-    rules: restrict(["@/app/*"], "features/ must not import route modules from app/."),
+    files: ["src/features/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { group: ["@/app/*"], message: "features/ must not import route modules from app/." },
+            {
+              group: ["@/content/modules/text", "@/content/modules/*/text"],
+              message:
+                "Module text is server-only: load it in an app/ route and pass it as props, so it ships as route data instead of client JavaScript.",
+            },
+          ],
+        },
+      ],
+    },
   },
   prettier,
   globalIgnores([

@@ -1,8 +1,15 @@
 import gsap from "gsap";
-import { BEAT_DEFAULTS, type FlowKind, type SceneLayout, type StepScene } from "@/lib/scene-spec";
+import {
+  type ActivityTone,
+  BEAT_DEFAULTS,
+  type FlowKind,
+  type SceneLayout,
+  type StatusTone,
+  type StepScene,
+} from "@/lib/scene-spec";
 
 /*
- * Beats → GSAP timeline compiler (ADR-0003).
+ * Beats → GSAP timeline compiler (ADR-0003, ADR-0008).
  *
  * GSAP never touches three.js objects directly. It tweens plain "channel" objects; the scene
  * reads them every frame. That keeps the timeline testable without WebGL, and keeps per-frame
@@ -15,21 +22,52 @@ export interface PacketChannel {
   readonly connection: string;
   readonly flow: FlowKind;
   readonly reverse: boolean;
+  /** Message id (module text) to show when the packet is inspected. */
+  readonly message: string | undefined;
   /** 0 at the start of the route, 1 at the end (in travel direction). */
   progress: number;
   /** 0 hidden, 1 visible. */
   opacity: number;
 }
 
+export interface StageChannel {
+  activity: number;
+  tone: ActivityTone;
+}
+
 /** Per-frame state of one scene component. */
 export interface ComponentChannel {
   /** 0 idle, 1 busy (a `process` beat). Drives the glow. */
+  activity: number;
+  /** Colour of the busy glow. */
+  tone: ActivityTone;
+  /** Persistent condition set by `status` beats ("none" when healthy). */
+  status: StatusTone | "none";
+  /**
+   * Badge set by `status` beats, as an index into `badgeTexts` (0 = none). An index, not the
+   * text, because GSAP would turn numeric-looking text such as "401" into numbers.
+   */
+  badge: number;
+  readonly badgeTexts: readonly string[];
+  /** Label of the stage currently busy ("" when none); shown as a badge. */
+  stageLabel: string;
+  readonly stages: Readonly<Record<string, StageChannel>>;
+}
+
+/** The badge text of a component ("" when none). */
+export function badgeText(channel: ComponentChannel): string {
+  return channel.badgeTexts[channel.badge] ?? "";
+}
+
+export interface WireChannel {
+  /** 0 idle, 1 lit (a `signal` beat). */
   activity: number;
 }
 
 export interface SceneChannels {
   readonly packets: readonly PacketChannel[];
   readonly components: Readonly<Record<string, ComponentChannel>>;
+  readonly wires: Readonly<Record<string, WireChannel>>;
 }
 
 export interface StepSpan {
@@ -70,53 +108,129 @@ export function compileTimeline(
   // Detach from GSAP's global root: the timeline is driven only through its controller, and a
   // detached timeline is garbage-collected with the studio instead of living in the root.
   gsap.globalTimeline.remove(timeline);
+
+  const badgeTexts: string[] = [""];
+  const badge = (text: string | undefined) => {
+    if (!text) return 0;
+    const index = badgeTexts.indexOf(text);
+    return index === -1 ? badgeTexts.push(text) - 1 : index;
+  };
   const components: Record<string, ComponentChannel> = Object.fromEntries(
-    layout.components.map((component) => [component.id, { activity: 0 }]),
+    layout.components.map((component) => [
+      component.id,
+      {
+        activity: 0,
+        tone: "active",
+        status: "none",
+        badge: 0,
+        badgeTexts,
+        stageLabel: "",
+        stages: Object.fromEntries(
+          (component.stages ?? []).map((stage) => [stage.id, { activity: 0, tone: "active" }]),
+        ),
+      } satisfies ComponentChannel,
+    ]),
+  );
+  const wires: Record<string, WireChannel> = Object.fromEntries(
+    layout.connections.map((connection) => [connection.id, { activity: 0 }]),
   );
   const packets: PacketChannel[] = [];
   const spans: StepSpan[] = [];
-  // Reduced motion: no travel. The packet sits at its source, then appears at its destination.
   const travelEase = reducedMotion ? jump : "power1.inOut";
   const fade = reducedMotion ? 0 : GLOW_FADE;
+  const at = (target: object, vars: gsap.TweenVars, time: number) =>
+    timeline.set(target, { ...vars, immediateRender: false }, time);
+
+  const componentAt = (id: string, stepIndex: number) => {
+    const channel = components[id];
+    if (!channel) throw new Error(`Unknown component "${id}" in step ${stepIndex}.`);
+    return channel;
+  };
+  const wireAt = (id: string, stepIndex: number) => {
+    const wire = wires[id];
+    if (!wire) throw new Error(`Unknown connection "${id}" in step ${stepIndex}.`);
+    return wire;
+  };
+  /** Fades `target.activity` up, holds, and fades it down within [time, time + duration]. */
+  const pulse = (target: { activity: number }, time: number, duration: number) => {
+    const fadeTime = Math.min(fade, duration / 3);
+    timeline.to(target, { activity: 1, duration: fadeTime, ease: "power1.out" }, time);
+    timeline.to(
+      target,
+      { activity: 0, duration: fadeTime, ease: "power1.in" },
+      time + duration - fadeTime,
+    );
+  };
 
   let time = 0;
   steps.forEach((step, stepIndex) => {
     const start = time;
     timeline.addLabel(stepLabel(stepIndex), start);
+
+    // Every step starts from a clean slate plus its declared initial state, so jumping to
+    // any step shows the same thing as playing up to it.
+    for (const [id, channel] of Object.entries(components)) {
+      const initial = step.scene.initial?.status?.[id];
+      at(channel, { status: initial?.tone ?? "none", badge: badge(initial?.badge) }, start);
+    }
     time += STEP_LEAD_IN;
 
     step.scene.beats.forEach((beat, beatIndex) => {
       switch (beat.type) {
         case "packet": {
           const duration = beat.duration ?? BEAT_DEFAULTS.packet;
+          wireAt(beat.connection, stepIndex);
           const packet: PacketChannel = {
             id: `${stepIndex}:${beatIndex}`,
             connection: beat.connection,
             flow: beat.flow,
             reverse: beat.reverse ?? false,
+            message: beat.message,
             progress: 0,
             opacity: 0,
           };
           packets.push(packet);
-          timeline.set(packet, { opacity: 1, progress: 0, immediateRender: false }, time);
-          timeline.to(packet, { progress: 1, duration, ease: travelEase }, time);
-          timeline.set(packet, { opacity: 0, immediateRender: false }, time + duration);
+          at(packet, { opacity: 1, progress: 0 }, time);
+          if (!beat.stay) timeline.to(packet, { progress: 1, duration, ease: travelEase }, time);
+          at(packet, { opacity: 0 }, time + duration);
           time += duration;
           break;
         }
         case "process": {
           const duration = beat.duration ?? BEAT_DEFAULTS.process;
-          const channel = components[beat.component];
-          if (!channel)
-            throw new Error(`Unknown component "${beat.component}" in step ${stepIndex}.`);
-          const fadeTime = Math.min(fade, duration / 3);
-          timeline.to(channel, { activity: 1, duration: fadeTime, ease: "power1.out" }, time);
-          timeline.to(
-            channel,
-            { activity: 0, duration: fadeTime, ease: "power1.in" },
-            time + duration - fadeTime,
-          );
+          const channel = componentAt(beat.component, stepIndex);
+          const tone = beat.tone ?? "active";
+          if (beat.stage) {
+            const stage = channel.stages[beat.stage];
+            if (!stage) throw new Error(`Unknown stage "${beat.stage}" in step ${stepIndex}.`);
+            const label =
+              layout.components
+                .find((component) => component.id === beat.component)
+                ?.stages?.find((candidate) => candidate.id === beat.stage)?.label ?? beat.stage;
+            at(stage, { tone }, time);
+            at(channel, { stageLabel: label }, time);
+            pulse(stage, time, duration);
+            at(channel, { stageLabel: "" }, time + duration);
+          } else {
+            at(channel, { tone }, time);
+            pulse(channel, time, duration);
+          }
           time += duration;
+          break;
+        }
+        case "signal": {
+          const duration = beat.duration ?? BEAT_DEFAULTS.signal;
+          pulse(wireAt(beat.connection, stepIndex), time, duration);
+          time += duration;
+          break;
+        }
+        case "status": {
+          const channel = componentAt(beat.component, stepIndex);
+          at(
+            channel,
+            { status: beat.status?.tone ?? "none", badge: badge(beat.status?.badge) },
+            time,
+          );
           break;
         }
         case "wait":
@@ -132,5 +246,5 @@ export function compileTimeline(
   // Make sure the timeline is as long as the last hold, even if it ends with a wait.
   timeline.set({}, {}, time);
 
-  return { timeline, channels: { packets, components }, steps: spans };
+  return { timeline, channels: { packets, components, wires }, steps: spans };
 }

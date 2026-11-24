@@ -1,5 +1,5 @@
 import type { SceneLayout, StepScene } from "@/lib/scene-spec";
-import { compileTimeline, STEP_HOLD, STEP_LEAD_IN } from "./compile";
+import { badgeText, compileTimeline, STEP_HOLD, STEP_LEAD_IN } from "./compile";
 import { TimelineController } from "./controller";
 
 const layout: SceneLayout = {
@@ -95,6 +95,88 @@ describe("compileTimeline", () => {
         { scene: { focus: [], beats: [{ type: "process", component: "zzz" }] } },
       ]),
     ).toThrow(/Unknown component "zzz"/);
+  });
+});
+
+describe("compileTimeline: states, stages and signals", () => {
+  const richLayout: SceneLayout = {
+    components: [
+      { id: "a", kind: "client", label: "A", role: "Client", position: [0, 0, 0] },
+      {
+        id: "g",
+        kind: "gateway",
+        label: "G",
+        role: "Gateway",
+        position: [4, 0, 0],
+        stages: [{ id: "auth", label: "Authentication" }],
+      },
+    ],
+    connections: [{ id: "a-g", from: "a", to: "g" }],
+  };
+  const richSteps: { scene: StepScene }[] = [
+    {
+      scene: {
+        focus: ["g"],
+        beats: [
+          { type: "process", component: "g", stage: "auth", tone: "error", duration: 1 },
+          { type: "status", component: "g", status: { tone: "error", badge: "401" } },
+          { type: "signal", connection: "a-g", duration: 1 },
+        ],
+      },
+    },
+    {
+      scene: {
+        focus: ["a"],
+        initial: { status: { a: { tone: "warning", badge: "slow" } } },
+        beats: [{ type: "packet", connection: "a-g", flow: "error", stay: true, duration: 1 }],
+      },
+    },
+  ];
+
+  it("lights a stage with its tone and shows its label while busy", () => {
+    const { channels, timeline } = compileTimeline(richLayout, richSteps);
+    timeline.seek(STEP_LEAD_IN + 0.5);
+    const g = channels.components.g!;
+    expect(g.stages.auth).toMatchObject({ activity: 1, tone: "error" });
+    expect(g.stageLabel).toBe("Authentication");
+    expect(g.activity).toBe(0);
+  });
+
+  it("sets statuses and badges, and resets them at the next step", () => {
+    const { channels, steps: spans, timeline } = compileTimeline(richLayout, richSteps);
+    timeline.seek(STEP_LEAD_IN + 1.5);
+    const g = channels.components.g!;
+    expect(g).toMatchObject({ status: "error", stageLabel: "" });
+    expect(badgeText(g)).toBe("401");
+    expect(channels.wires["a-g"]?.activity).toBe(1);
+
+    timeline.seek(spans[1]!.start + 0.1);
+    expect(g.status).toBe("none");
+    expect(badgeText(g)).toBe("");
+    // The next step's declared initial state applies from its start.
+    const a = channels.components.a!;
+    expect(a.status).toBe("warning");
+    expect(badgeText(a)).toBe("slow");
+
+    timeline.seek(0.1); // and seeking back restores the first step's clean start
+    expect(a.status).toBe("none");
+    expect(badgeText(a)).toBe("");
+  });
+
+  it("keeps a staying packet at the start of its route", () => {
+    const { channels, steps: spans, timeline } = compileTimeline(richLayout, richSteps);
+    timeline.seek(spans[1]!.start + STEP_LEAD_IN + 0.6);
+    expect(channels.packets[0]).toMatchObject({ opacity: 1, progress: 0, flow: "error" });
+  });
+
+  it("rejects unknown stages and connections", () => {
+    const step = (beat: StepScene["beats"][number]) => [{ scene: { focus: ["g"], beats: [beat] } }];
+    expect(() =>
+      compileTimeline(richLayout, step({ type: "process", component: "g", stage: "nope" })),
+    ).toThrow(/Unknown stage "nope"/);
+    expect(() => compileTimeline(richLayout, step({ type: "signal", connection: "x" }))).toThrow(
+      /Unknown connection "x"/,
+    );
   });
 });
 

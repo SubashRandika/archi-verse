@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InspectorPanel } from "@/features/inspector/inspector-panel";
-import { useProgressStore } from "@/features/progress/progress-store";
+import { PROGRESS_STORAGE_KEY, useProgressStore } from "@/features/progress/progress-store";
+import { apiGatewayText } from "@/test/module-text";
 import { renderInStudio } from "@/test/render";
 import { Studio } from "./studio";
 
@@ -12,7 +13,7 @@ function renderStudio(options?: Parameters<typeof renderInStudio>[1]) {
   return renderInStudio(
     <>
       <Studio />
-      <InspectorPanel />
+      <InspectorPanel text={apiGatewayText} />
     </>,
     options,
   );
@@ -31,7 +32,7 @@ describe("Studio (without WebGL)", () => {
 
     // Playing again moves on to the next step.
     await user.click(screen.getByRole("button", { name: "Play" }));
-    expect(currentStep()).toHaveAccessibleName("Step 2: The gateway checks and routes it");
+    expect(currentStep()).toHaveAccessibleName("Step 2: Anatomy of an HTTP request");
   });
 
   it("supports keyboard shortcuts outside of form controls and widgets", async () => {
@@ -41,13 +42,13 @@ describe("Studio (without WebGL)", () => {
     studio.focus();
 
     await user.keyboard("{ArrowRight}");
-    expect(currentStep()).toHaveAccessibleName("Step 2: The gateway checks and routes it");
+    expect(currentStep()).toHaveAccessibleName("Step 2: Anatomy of an HTTP request");
     await user.keyboard("{ArrowRight}");
-    expect(currentStep()).toHaveAccessibleName("Step 3: The response flows back");
+    expect(currentStep()).toHaveAccessibleName("Step 3: Across the network");
     await user.keyboard("{ArrowLeft}");
-    expect(currentStep()).toHaveAccessibleName("Step 2: The gateway checks and routes it");
+    expect(currentStep()).toHaveAccessibleName("Step 2: Anatomy of an HTTP request");
     await user.keyboard("r");
-    expect(currentStep()).toHaveAccessibleName("Step 1: The request leaves the browser");
+    expect(currentStep()).toHaveAccessibleName("Step 1: Meet the client");
   });
 
   it("selects components from the scene outline, in sync with the inspector", async () => {
@@ -84,7 +85,32 @@ describe("Studio (without WebGL)", () => {
 
     expect(useProgressStore.getState().concepts["api-gateway"]).toMatchObject({
       status: "in-progress",
-      lastStepId: "gateway-routes-the-request",
+      lastStepId: "anatomy-of-a-request",
     });
+  });
+
+  it("resumes at the learner's last step once saved progress loads", async () => {
+    localStorage.setItem(
+      PROGRESS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        state: {
+          concepts: {
+            "api-gateway": {
+              status: "in-progress",
+              updatedAt: "2026-11-24T10:00:00Z",
+              lastStepId: "rate-limiting",
+            },
+          },
+        },
+      }),
+    );
+    renderStudio();
+    expect(currentStep()).toHaveAccessibleName("Step 1: Meet the client");
+
+    await act(() => useProgressStore.persist.rehydrate());
+
+    expect(currentStep()).toHaveAccessibleName("Step 6: Rate limiting");
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
   });
 });

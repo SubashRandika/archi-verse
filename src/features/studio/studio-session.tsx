@@ -2,15 +2,17 @@
 
 import { createContext, useContext, useEffect, useMemo } from "react";
 import { useStore } from "zustand";
-import type { LearningModule, ModuleChapter, ModuleStep } from "@/content/modules";
+import type { LearningModule, ModuleChapter, ModuleScenario, ModuleStep } from "@/content/modules";
 import { useProgressStore } from "@/features/progress/progress-store";
 import {
   createProgressChannel,
   createStudioSession,
+  MAIN_TRACK,
   type ProgressChannel,
   type StudioSession,
   type StudioSessionStore,
 } from "./session-store";
+import { trackLengths, trackSteps } from "./tracks";
 
 export interface StudioSessionValue {
   readonly conceptId: string;
@@ -24,7 +26,8 @@ export const StudioSessionContext = createContext<StudioSessionValue | null>(nul
 
 /**
  * Creates the session for a concept's module (a fresh one whenever the concept changes) and
- * wires its side effects: recording progress and pausing when the tab is hidden.
+ * wires its side effects: resuming at the last step, recording progress and pausing when
+ * the tab is hidden.
  */
 export function useStudioSessionValue(
   conceptId: string,
@@ -38,7 +41,7 @@ export function useStudioSessionValue(
             conceptId,
             learningModule,
             store: createStudioSession({
-              stepCount: learningModule.steps.length,
+              tracks: trackLengths(learningModule),
               initialStepIndex,
             }),
             progress: createProgressChannel(),
@@ -47,16 +50,36 @@ export function useStudioSessionValue(
     [conceptId, learningModule, initialStepIndex],
   );
 
-  // Playing or navigating a step marks the concept "in progress" and remembers the step.
+  // Resume where the learner left off, once saved progress has loaded (unless a step was
+  // requested explicitly, or the learner already navigated).
+  useEffect(() => {
+    if (!value || initialStepIndex !== undefined) return;
+    const resume = () => {
+      const lastStepId = useProgressStore.getState().concepts[value.conceptId]?.lastStepId;
+      const index = value.learningModule.steps.findIndex((step) => step.id === lastStepId);
+      if (index > 0) value.store.getState().resume(index);
+    };
+    if (useProgressStore.persist.hasHydrated()) resume();
+    return useProgressStore.persist.onFinishHydration(resume);
+  }, [value, initialStepIndex]);
+
+  // Playing or navigating a step marks the concept "in progress" and remembers the step
+  // (for a scenario: the main-path step it branches from).
   // Never before saved progress has loaded: the write would replace it with defaults.
   useEffect(() => {
     if (!value) return;
     return value.store.subscribe((state, previous) => {
-      const started =
-        state.seekCount !== previous.seekCount || (state.playing && !previous.playing);
+      // A navigation counts once it plays (or, without 3D, has already finished); a resume
+      // only shows a step, so it does not.
+      const navigated =
+        state.seekCount !== previous.seekCount && (state.playing || state.stepComplete);
+      const started = navigated || (state.playing && !previous.playing);
       if (!started || !useProgressStore.persist.hasHydrated()) return;
-      const step = value.learningModule.steps[state.stepIndex];
-      if (step) useProgressStore.getState().recordStep(value.conceptId, step.id);
+      const stepId =
+        state.trackId === MAIN_TRACK
+          ? value.learningModule.steps[state.stepIndex]?.id
+          : value.learningModule.scenarios.find((s) => s.id === state.trackId)?.branchesFromStepId;
+      if (stepId) useProgressStore.getState().recordStep(value.conceptId, stepId);
     });
   }, [value]);
 
@@ -98,16 +121,27 @@ export function useStepProgress(): ProgressChannel {
 
 export interface CurrentStep {
   readonly step: ModuleStep;
+  /** The step's chapter; a scenario counts as one chapter. */
   readonly chapter: ModuleChapter;
+  /** The scenario being played, if any. */
+  readonly scenario: ModuleScenario | undefined;
   readonly index: number;
   readonly count: number;
+  /** Steps of the current track. */
+  readonly steps: readonly ModuleStep[];
 }
 
 export function useCurrentStep(): CurrentStep {
   const learningModule = useStudioModule();
+  const trackId = useStudioSession((session) => session.trackId);
   const index = useStudioSession((session) => session.stepIndex);
-  const step = learningModule.steps[index] ?? learningModule.steps[0];
-  const chapter = learningModule.chapters.find((candidate) => candidate.id === step?.chapterId);
+  const steps = trackSteps(learningModule, trackId);
+  const step = steps[index] ?? steps[0];
+  const scenario = learningModule.scenarios.find((candidate) => candidate.id === trackId);
+  const mainStep = learningModule.steps.find((candidate) => candidate.id === step?.id);
+  const chapter = scenario
+    ? { id: scenario.id, title: scenario.title }
+    : learningModule.chapters.find((candidate) => candidate.id === mainStep?.chapterId);
   if (!step || !chapter) throw new Error(`Module "${learningModule.id}" has no step ${index}.`);
-  return { step, chapter, index, count: learningModule.steps.length };
+  return { step, chapter, scenario, index, count: steps.length, steps };
 }

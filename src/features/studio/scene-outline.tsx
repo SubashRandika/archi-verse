@@ -20,25 +20,27 @@ export function SceneOutline() {
     >
       <p className="px-2 pb-1 text-label text-graphite">Scene components</p>
       <ul className="flex flex-col gap-0.5">
-        {learningModule.layout.components.map((component) => {
-          const selected = component.id === selectedId;
-          return (
-            <li key={component.id}>
-              <button
-                type="button"
-                aria-pressed={selected}
-                onClick={() => select(selected ? null : component.id)}
-                className={cn(
-                  "flex w-full items-baseline justify-between gap-2 rounded-sm px-2 py-1 text-left text-caption hover:bg-hull-hover",
-                  selected ? "text-flow-selection" : "text-paper",
-                )}
-              >
-                {component.label}
-                <span className="text-label text-graphite">{component.role}</span>
-              </button>
-            </li>
-          );
-        })}
+        {learningModule.layout.components
+          .filter((component) => !component.decorative)
+          .map((component) => {
+            const selected = component.id === selectedId;
+            return (
+              <li key={component.id}>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => select(selected ? null : component.id)}
+                  className={cn(
+                    "flex w-full items-baseline justify-between gap-2 rounded-sm px-2 py-1 text-left text-caption hover:bg-hull-hover",
+                    selected ? "text-flow-selection" : "text-paper",
+                  )}
+                >
+                  {component.label}
+                  <span className="text-label text-graphite">{component.role}</span>
+                </button>
+              </li>
+            );
+          })}
       </ul>
     </nav>
   );

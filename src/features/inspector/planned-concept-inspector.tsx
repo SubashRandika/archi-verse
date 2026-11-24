@@ -4,17 +4,11 @@ import Link from "next/link";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getCategory, getCategoryConcepts } from "@/content/catalog";
 import { useCurrentConcept } from "@/features/studio/current-concept";
-import { InspectorPanel } from "./inspector-panel";
-
-/** The inspector for the current concept: module content, or an overview for planned ones. */
-export function ConceptInspector() {
-  const { concept } = useCurrentConcept();
-  return concept.availability === "available" ? <InspectorPanel /> : <PlannedConceptInspector />;
-}
 
 const RELATED_LIMIT = 6;
 
-function PlannedConceptInspector() {
+/** The inspector for a concept without a learning module yet: an overview and related links. */
+export function PlannedConceptInspector() {
   const { concept, activeCategoryId, setPreferredCategoryId } = useCurrentConcept();
   const category = getCategory(activeCategoryId);
   const related = category

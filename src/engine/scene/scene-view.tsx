@@ -23,6 +23,8 @@ export interface SceneViewProps {
   readonly smooth: boolean;
   readonly onSelect?: (id: string) => void;
   readonly onHover?: (id: string | null) => void;
+  /** A packet carrying a message was clicked. */
+  readonly onInspectMessage?: (messageId: string) => void;
 }
 
 /** Renders a scene layout: components, connections and the packets travelling on them. */
@@ -36,6 +38,7 @@ export function SceneView({
   smooth,
   onSelect,
   onHover,
+  onInspectMessage,
 }: SceneViewProps) {
   const canvas = useThree((state) => state.gl.domElement);
   useEffect(() => {
@@ -63,6 +66,9 @@ export function SceneView({
           key={connection.id}
           points={routes.get(connection.id)!.wire}
           state={wireState(connection.id, connection.from, connection.to)}
+          dashed={connection.style === "dashed"}
+          hidden={connection.hidden}
+          channel={channels?.wires[connection.id]}
         />
       ))}
       {layout.components.map((component) => (
@@ -80,7 +86,14 @@ export function SceneView({
       ))}
       {channels?.packets.map((packet) => {
         const route = routes.get(packet.connection);
-        return route ? <Packet key={packet.id} channel={packet} route={route.packet} /> : null;
+        return route ? (
+          <Packet
+            key={packet.id}
+            channel={packet}
+            route={route.packet}
+            onInspect={onInspectMessage}
+          />
+        ) : null;
       })}
     </>
   );

@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ConceptInspector } from "@/features/inspector/concept-inspector";
+import { PlannedConceptInspector } from "@/features/inspector/planned-concept-inspector";
 import { useProgressStore } from "@/features/progress/progress-store";
 import { renderInStudio } from "@/test/render";
 import { PlannedConceptStudio } from "./planned-concept-studio";
@@ -49,9 +49,9 @@ describe("PlannedConceptStudio", () => {
   });
 });
 
-describe("ConceptInspector for a planned concept", () => {
+describe("PlannedConceptInspector", () => {
   it("shows the summary, alternative names and related concepts", () => {
-    renderInStudio(<ConceptInspector />, { conceptSlug: "server-sent-events" });
+    renderInStudio(<PlannedConceptInspector />, { conceptSlug: "server-sent-events" });
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Server-Sent Events (SSE)" }),

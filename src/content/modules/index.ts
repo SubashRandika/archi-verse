@@ -1,9 +1,12 @@
-import { apiGatewayModule } from "./api-gateway";
+import { apiGatewayModule } from "./api-gateway/structure";
 import type { LearningModule } from "./types";
 
-export type { LearningModule, ModuleChapter, ModuleStep } from "./types";
+export type * from "./types";
 
-/** Every implemented learning module, by id. */
+/**
+ * Every implemented learning module (structure only), by id. Module **text** is loaded by
+ * server code through `./text`, never imported from client components.
+ */
 export const modules: Readonly<Record<string, LearningModule>> = {
   [apiGatewayModule.id]: apiGatewayModule,
 };
