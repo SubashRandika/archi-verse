@@ -1,0 +1,73 @@
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import prettier from "eslint-config-prettier/flat";
+
+/**
+ * Architectural dependency rules (see docs/ARCHITECTURE.md → "Dependency rules").
+ * Lower layers must never import higher layers:
+ *
+ *   app → features → engine / content → lib
+ */
+const restrict = (groups, message) => ({
+  "no-restricted-imports": ["error", { patterns: [{ group: groups, message }] }],
+});
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  {
+    rules: {
+      "@typescript-eslint/consistent-type-imports": ["error", { fixStyle: "inline-type-imports" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
+    files: ["src/lib/**/*.{ts,tsx}"],
+    rules: restrict(
+      ["@/app/*", "@/features/*", "@/engine/*", "@/content/*", "@/components/*"],
+      "lib/ is the bottom layer: it must not depend on app, features, engine, content or UI.",
+    ),
+  },
+  {
+    files: ["src/content/**/*.{ts,tsx}"],
+    rules: restrict(
+      [
+        "@/app/*",
+        "@/features/*",
+        "@/engine/*",
+        "@/components/*",
+        "react",
+        "three",
+        "@react-three/*",
+      ],
+      "content/ is pure learning data: it must not import UI, React or the 3D engine.",
+    ),
+  },
+  {
+    files: ["src/engine/**/*.{ts,tsx}"],
+    rules: restrict(
+      ["@/app/*", "@/features/*", "@/content/*"],
+      "engine/ is domain-agnostic: it must not import features or learning content.",
+    ),
+  },
+  {
+    files: ["src/features/**/*.{ts,tsx}"],
+    rules: restrict(["@/app/*"], "features/ must not import route modules from app/."),
+  },
+  prettier,
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
