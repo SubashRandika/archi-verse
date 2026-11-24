@@ -55,6 +55,14 @@ const eslintConfig = defineConfig([
     ),
   },
   {
+    // The 3D engine updates three.js objects (materials, lines, the canvas) imperatively in
+    // render-loop callbacks and effects: the intended React Three Fiber pattern, and the way
+    // per-frame values stay out of React (ADR-0004). The React Compiler's immutability rule
+    // flags exactly that, so it is off for engine components only (docs/CONVENTIONS.md).
+    files: ["src/engine/**/*.tsx"],
+    rules: { "react-hooks/immutability": "off" },
+  },
+  {
     files: ["src/features/**/*.{ts,tsx}"],
     rules: restrict(["@/app/*"], "features/ must not import route modules from app/."),
   },

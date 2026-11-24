@@ -39,6 +39,11 @@ if (!Element.prototype.getAnimations) {
   Element.prototype.getAnimations = () => [];
 }
 
+// jsdom has no canvas: report "no WebGL" quietly (instead of a "not implemented" error), so
+// studio tests exercise the static fallback. The 3D scene is tested in the browser (e2e).
+HTMLCanvasElement.prototype.getContext = (() =>
+  null) as typeof HTMLCanvasElement.prototype.getContext;
+
 /* Next.js router APIs are not available outside the framework; tests control the route. */
 vi.mock("next/navigation", () => ({
   useParams: vi.fn(() => ({ conceptSlug: "api-gateway" })),

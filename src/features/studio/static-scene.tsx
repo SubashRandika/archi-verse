@@ -1,7 +1,7 @@
 /**
- * PLACEHOLDER (Phase 2). A static isometric line drawing of the API Gateway scene so the
- * studio shell can be judged with realistic content. Replaced by the interactive 3D scene
- * (React Three Fiber) in Phase 4.
+ * A static isometric line drawing of the API Gateway scene. Since Phase 4 it is the
+ * fallback when WebGL is unavailable (or the context is lost), so the studio still shows the
+ * architecture while steps and explanations keep working.
  */
 
 type Point3 = readonly [x: number, y: number, z: number];
@@ -153,7 +153,7 @@ function Label({ at, children }: { at: Point3; children: string }) {
   );
 }
 
-export function PlaceholderScene() {
+export function StaticScene() {
   const [dbX, dbBaseY] = iso([database.cx, database.cy, 0]);
   const [, dbTopY] = iso([database.cx, database.cy, database.h]);
   const [packetX, packetY] = iso(packet);

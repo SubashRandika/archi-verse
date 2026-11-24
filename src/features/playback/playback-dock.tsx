@@ -1,7 +1,7 @@
 "use client";
 
 import { Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { IconButton } from "@/components/icon-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,12 +11,17 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { previewChapters } from "@/features/studio/placeholder";
 import {
   PLAYBACK_SPEEDS,
   type PlaybackSpeed,
-  useStudioPreview,
-} from "@/features/studio/studio-preview-context";
+  usePreferencesStore,
+} from "@/features/preferences/preferences-store";
+import {
+  useCurrentStep,
+  useStepProgress,
+  useStudioModule,
+  useStudioSession,
+} from "@/features/studio/studio-session";
 import { cn } from "@/lib/utils";
 
 const formatSpeed = (speed: number) => `${speed}×`;
@@ -32,14 +37,24 @@ function CellLabel({ children }: { children: string }) {
 
 /**
  * Playback controls, designed as the drawing's title block: ruled cells for transport,
- * timeline, current step and speed. Phase 2 drives placeholder state only; Phase 4 connects
- * it to the GSAP timeline (ADR-0003).
+ * timeline, current step and speed. Drives the studio session; the scene's GSAP timeline
+ * follows it (ADR-0003).
  */
 export function PlaybackDock() {
-  const preview = useStudioPreview();
-  const { stepIndex, steps, currentStep, playing } = preview;
+  const learningModule = useStudioModule();
+  const { step: currentStep, chapter: currentChapter, index: stepIndex, count } = useCurrentStep();
+  const playing = useStudioSession((session) => session.playing);
+  const stepComplete = useStudioSession((session) => session.stepComplete);
+  const togglePlaying = useStudioSession((session) => session.togglePlaying);
+  const previousStep = useStudioSession((session) => session.previousStep);
+  const nextStep = useStudioSession((session) => session.nextStep);
+  const restart = useStudioSession((session) => session.restart);
+  const goToStep = useStudioSession((session) => session.goToStep);
+  const speed = usePreferencesStore((state) => state.playbackSpeed);
+  const setSpeed = usePreferencesStore((state) => state.setPlaybackSpeed);
   const isFirst = stepIndex === 0;
-  const isLast = stepIndex === steps.length - 1;
+  const isLast = stepIndex === count - 1;
+  const playLabel = playing ? "Pause" : stepComplete && isLast ? "Replay step" : "Play";
 
   return (
     <section
@@ -53,7 +68,7 @@ export function PlaybackDock() {
           icon={<RotateCcw />}
           tooltipSide="top"
           className="text-graphite hover:text-paper"
-          onClick={preview.restart}
+          onClick={restart}
         />
         <IconButton
           label="Previous step"
@@ -61,16 +76,16 @@ export function PlaybackDock() {
           tooltipSide="top"
           className="text-graphite hover:text-paper"
           disabled={isFirst}
-          onClick={preview.previousStep}
+          onClick={previousStep}
         />
         <IconButton
-          label={playing ? "Pause" : "Play"}
+          label={playLabel}
           icon={playing ? <Pause className="fill-current" /> : <Play className="fill-current" />}
           tooltipSide="top"
           variant="default"
           size="icon-lg"
           className="mx-1 rounded-full"
-          onClick={preview.togglePlaying}
+          onClick={togglePlaying}
         />
         <IconButton
           label="Next step"
@@ -78,20 +93,23 @@ export function PlaybackDock() {
           tooltipSide="top"
           className="text-graphite hover:text-paper"
           disabled={isLast}
-          onClick={preview.nextStep}
+          onClick={nextStep}
         />
       </Cell>
 
       {/* Timeline */}
       <Cell className="order-1 col-span-3 border-b px-3 pt-2 pb-2.5 @3xl:order-2 @3xl:col-span-1 @3xl:border-b-0 @3xl:border-l">
         <ol aria-label="Timeline" className="flex w-full gap-2">
-          {previewChapters.map((chapter) => {
+          {learningModule.chapters.map((chapter) => {
             const chapterIsCurrent = chapter.id === currentStep.chapterId;
+            const chapterSteps = learningModule.steps.filter(
+              (step) => step.chapterId === chapter.id,
+            );
             return (
               <li
                 key={chapter.id}
                 className="min-w-0"
-                style={{ flexGrow: chapter.steps.length, flexBasis: 0 }}
+                style={{ flexGrow: chapterSteps.length, flexBasis: 0 }}
               >
                 {/* Shown when the timeline has room: full-width row, or a wide dock. */}
                 <span
@@ -103,8 +121,8 @@ export function PlaybackDock() {
                   {chapter.title}
                 </span>
                 <ol className="flex gap-0.5">
-                  {chapter.steps.map((step) => {
-                    const index = steps.findIndex((candidate) => candidate.id === step.id);
+                  {chapterSteps.map((step) => {
+                    const index = learningModule.steps.indexOf(step);
                     const state =
                       index < stepIndex ? "done" : index === stepIndex ? "current" : "upcoming";
                     return (
@@ -113,17 +131,20 @@ export function PlaybackDock() {
                           type="button"
                           aria-label={`Step ${index + 1}: ${step.title}`}
                           aria-current={state === "current" ? "step" : undefined}
-                          onClick={() => preview.goToStep(index)}
+                          onClick={() => goToStep(index)}
                           className="group flex h-6 w-full min-w-6 items-center rounded-sm"
                         >
-                          <span
-                            className={cn(
-                              "block h-1 w-full rounded-full transition-colors group-hover:bg-paper/60",
-                              state === "done" && "bg-paper/55",
-                              state === "current" && "h-1.5 bg-paper",
-                              state === "upcoming" && "bg-rule-strong",
-                            )}
-                          />
+                          {state === "current" ? (
+                            <CurrentStepTrack />
+                          ) : (
+                            <span
+                              className={cn(
+                                "block h-1 w-full rounded-full transition-colors group-hover:bg-paper/60",
+                                state === "done" && "bg-paper/55",
+                                state === "upcoming" && "bg-rule-strong",
+                              )}
+                            />
+                          )}
                         </button>
                       </li>
                     );
@@ -139,13 +160,13 @@ export function PlaybackDock() {
       <Cell className="order-3 flex-col items-stretch justify-center gap-0.5 border-l px-3 py-2">
         <span className="flex items-baseline justify-between gap-2">
           <span className="truncate font-condensed text-label text-graphite">
-            {currentStep.chapterTitle}
+            {currentChapter.title}
           </span>
           <span
             aria-hidden="true"
             className="font-condensed text-label text-graphite tabular-nums"
-          >{`${stepIndex + 1}/${steps.length}`}</span>
-          <span className="sr-only">{`Step ${stepIndex + 1} of ${steps.length}`}</span>
+          >{`${stepIndex + 1}/${count}`}</span>
+          <span className="sr-only">{`Step ${stepIndex + 1} of ${count}`}</span>
         </span>
         <span className="truncate text-caption font-medium text-paper" aria-live="polite">
           {currentStep.title}
@@ -157,9 +178,36 @@ export function PlaybackDock() {
         <span className="px-1">
           <CellLabel>Speed</CellLabel>
         </span>
-        <SpeedMenu speed={preview.speed} onChange={preview.setSpeed} />
+        <SpeedMenu speed={speed} onChange={setSpeed} />
       </Cell>
     </section>
+  );
+}
+
+/**
+ * The current step's tick doubles as its progress bar. The fill follows the playhead through
+ * the progress channel, writing a transform directly: no React render per frame.
+ */
+function CurrentStepTrack() {
+  const progress = useStepProgress();
+  const fill = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const apply = (value: number) => {
+      if (fill.current) fill.current.style.transform = `scaleX(${value})`;
+    };
+    apply(progress.get());
+    return progress.subscribe(apply);
+  }, [progress]);
+
+  return (
+    <span className="relative block h-1.5 w-full overflow-hidden rounded-full bg-paper/30 group-hover:bg-paper/45">
+      <span
+        ref={fill}
+        data-testid="step-progress"
+        className="absolute inset-0 origin-left rounded-full bg-paper"
+        style={{ transform: "scaleX(0)" }}
+      />
+    </span>
   );
 }
 

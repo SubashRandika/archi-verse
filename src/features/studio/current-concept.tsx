@@ -3,9 +3,10 @@
 import { useParams } from "next/navigation";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { type Concept, DEFAULT_CONCEPT_ID, getConcept } from "@/content/catalog";
+import { getModule } from "@/content/modules";
 import { usePreferencesStore } from "@/features/preferences/preferences-store";
 import { useHasHydrated } from "@/features/progress/persisted-state";
-import { StudioPreviewProvider } from "./studio-preview-context";
+import { StudioSessionContext, useStudioSessionValue } from "./studio-session";
 
 interface CurrentConceptState {
   concept: Concept;
@@ -60,11 +61,13 @@ export function CurrentConceptProvider({
     [concept, activeCategoryId, setPreferredCategoryId],
   );
 
+  // A fresh studio session per concept. The provider itself stays mounted (with `null` for
+  // concepts without a module) so the shell and sidebar keep their state while navigating.
+  const session = useStudioSessionValue(concept.id, getModule(concept.moduleId), initialStepIndex);
+
   return (
     <CurrentConceptContext.Provider value={value}>
-      <StudioPreviewProvider conceptId={concept.id} initialStepIndex={initialStepIndex}>
-        {children}
-      </StudioPreviewProvider>
+      <StudioSessionContext.Provider value={session}>{children}</StudioSessionContext.Provider>
     </CurrentConceptContext.Provider>
   );
 }

@@ -7,12 +7,12 @@ import { getCategory } from "@/content/catalog";
 import { CompletionToggle } from "@/features/progress/completion-toggle";
 import { useShell } from "@/features/shell/shell-context";
 import { useCurrentConcept } from "./current-concept";
-import { type StudioMode, useStudioPreview } from "./studio-preview-context";
+import type { StudioMode } from "./session-store";
+import { useStudioSession } from "./studio-session";
 
 export function StudioHeader() {
   const shell = useShell();
   const { concept, activeCategoryId } = useCurrentConcept();
-  const { mode, setMode } = useStudioPreview();
   const category = getCategory(activeCategoryId);
   const hasModule = concept.availability === "available";
 
@@ -34,26 +34,7 @@ export function StudioHeader() {
         </h1>
       </div>
 
-      {hasModule && (
-        <ToggleGroup
-          aria-label="Learning mode"
-          variant="outline"
-          size="sm"
-          spacing={0}
-          value={[mode]}
-          onValueChange={(value) => {
-            const next = value[0] as StudioMode | undefined;
-            if (next) setMode(next);
-          }}
-        >
-          <ToggleGroupItem value="guided" className="px-2.5 text-caption">
-            Guided
-          </ToggleGroupItem>
-          <ToggleGroupItem value="explore" className="px-2.5 text-caption">
-            Explore
-          </ToggleGroupItem>
-        </ToggleGroup>
-      )}
+      {hasModule && <ModeToggle />}
 
       <CompletionToggle conceptId={concept.id} compact={shell.layout === "mobile"} />
 
@@ -73,5 +54,31 @@ export function StudioHeader() {
         />
       )}
     </header>
+  );
+}
+
+/** Guided (step by step) or Explore (free inspection). Only for concepts with a module. */
+function ModeToggle() {
+  const mode = useStudioSession((session) => session.mode);
+  const setMode = useStudioSession((session) => session.setMode);
+  return (
+    <ToggleGroup
+      aria-label="Learning mode"
+      variant="outline"
+      size="sm"
+      spacing={0}
+      value={[mode]}
+      onValueChange={(value) => {
+        const next = value[0] as StudioMode | undefined;
+        if (next) setMode(next);
+      }}
+    >
+      <ToggleGroupItem value="guided" className="px-2.5 text-caption">
+        Guided
+      </ToggleGroupItem>
+      <ToggleGroupItem value="explore" className="px-2.5 text-caption">
+        Explore
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 }

@@ -18,7 +18,7 @@ Decisions are recorded as ADRs in [`docs/adr/`](./adr/). The approved product pl
    │            │   engine/  — domain-agnostic 3D scene + timeline engine (R3F, GSAP).
    │            │   content/ — pure learning data (catalog, modules, steps, component docs).
    └──────┬─────┘
-        lib/     Framework-free utilities, Zod schemas, storage helpers.
+        lib/     Framework-free utilities, scene-spec types (content ↔ engine contract).
  components/ui/  shadcn/ui primitives (generated, lightly customised).
 ```
 
@@ -46,17 +46,18 @@ Status: ✅ exists · ⏳ planned.
 | `src/components/`           | App-wide UI helpers (`IconButton`) + `ui/` shadcn primitives     | ✅ 2    |
 | `src/features/shell/`       | Responsive frame, resizable/collapsible panels, `useShell()`     | ✅ 2    |
 | `src/features/explorer/`    | Category/concept navigation, search, progress indicators         | ✅ 2–3  |
-| `src/features/studio/`      | Studio composition: header, drafting plate, (3D) scene           | ✅ 2, 5 |
+| `src/features/studio/`      | Studio composition, session store, 3D stage, outline, shortcuts  | ✅ 2–4  |
 | `src/features/inspector/`   | Step explanation, component details, explanation blocks          | ✅ 2, 5 |
-| `src/features/playback/`    | Playback dock (title block)                                      | ✅ 2, 4 |
+| `src/features/playback/`    | Playback dock (title block), driving the session store           | ✅ 2–4  |
 | `src/features/progress/`    | Persisted progress store, selectors, completion, hydration       | ✅ 3    |
 | `src/features/preferences/` | Persisted preferences: level, speed, panel layouts, last concept | ✅ 3    |
-| `src/engine/scene/`         | Canvas, lights, isometric camera rig, selection/highlight        | ⏳ 4    |
-| `src/engine/primitives/`    | Reusable 3D parts: device shells, connections, packets           | ⏳ 4    |
-| `src/engine/timeline/`      | Beats → GSAP timeline compiler, playback controller              | ⏳ 4    |
+| `src/engine/scene/`         | Canvas, isometric camera rig + framing, labels, stats, WebGL     | ✅ 4    |
+| `src/engine/primitives/`    | Reusable 3D parts: component shapes, wires, packets, resources   | ✅ 4    |
+| `src/engine/timeline/`      | Beats → GSAP timeline compiler, step playback controller         | ✅ 4    |
 | `src/content/catalog/`      | 16 categories, 291 concepts (one file per category)              | ✅ 2–3  |
-| `src/content/modules/<id>/` | One learning module: steps, components, scenarios, layout        | ⏳ 5    |
-| `src/lib/`                  | Utilities, Zod schemas, storage                                  | ✅ 1+   |
+| `src/content/modules/<id>/` | One learning module: layout, chapters, steps (scenarios in 5)    | ✅ 4–5  |
+| `src/lib/scene-spec/`       | Scene layout, step scene and beat types shared by content/engine | ✅ 4    |
+| `src/lib/`                  | Utilities, `useReducedMotion`                                    | ✅ 1+   |
 | `src/test/`                 | Test helpers (`renderInStudio`)                                  | ✅ 2    |
 
 ### Placeholders
@@ -65,8 +66,12 @@ Phase 2 uses realistic placeholder content so the shell can be judged with real 
 placeholder lives in a `placeholder.ts` / `placeholder-*.tsx` file (or is marked `PLACEHOLDER` in
 its doc comment) and names the phase that replaces it:
 
-- `features/studio/placeholder.ts`, `studio-preview-context.tsx`, `placeholder-scene.tsx` → Phases 4–5
-- `features/inspector/placeholder.ts` → Phase 5
+- `features/inspector/placeholder.ts` (draft explanations for the 3 demo steps, one component
+  doc) → Phase 5
+- ~~`features/studio/placeholder.ts`, `studio-preview-context.tsx`~~ → replaced by the module
+  data and the session store in Phase 4
+- `features/studio/static-scene.tsx` (formerly the placeholder sketch) is now the **WebGL
+  fallback**, not a placeholder
 - ~~`features/explorer/placeholder.ts`~~ → replaced by the real catalog in Phase 3
 
 ## Concept catalog
@@ -90,27 +95,34 @@ its doc comment) and names the phase that replaces it:
 
 ## State tiers
 
-| Tier      | Lives in                                       | Examples                                    |
-| --------- | ---------------------------------------------- | ------------------------------------------- |
-| Persisted | Zustand + `persist` (versioned, Zod-validated) | progress, explanation level, playback speed |
-| Session   | Zustand store scoped to one studio instance    | mode, step, scenario, selection, playing    |
-| URL       | search params                                  | `?step=5&scenario=timeout` (shareable)      |
-| Per-frame | three.js objects mutated via refs / GSAP       | packet positions, glow intensity            |
+| Tier      | Lives in                                       | Examples                                      |
+| --------- | ---------------------------------------------- | --------------------------------------------- |
+| Persisted | Zustand + `persist` (versioned, Zod-validated) | progress, explanation level, playback speed   |
+| Session   | Zustand store per studio (`session-store.ts`)  | step, playing, step complete, mode, selection |
+| URL       | search params                                  | `?step=5&scenario=timeout` (shareable)        |
+| Per-frame | three.js objects mutated via refs / GSAP       | packet positions, glow intensity              |
 
-Per-frame values never go through React state.
+Per-frame values never go through React state. The playhead within a step reaches the dock
+through a tiny progress channel (subscribe + direct DOM write), not the store.
 
 ## Rendering
 
 - Every route is statically generated (`output: "export"`).
-- The 3D canvas is a client-only, lazily imported island; three.js must never enter the
-  explorer's bundle.
+- The 3D scene (`features/studio/studio-scene.tsx` + `engine/*`) is one lazily loaded chunk,
+  imported only by `StudioStage` on module pages, after the page is interactive. Planned
+  concepts never download it (checked by `npm run check:bundles` and e2e).
+- **On-demand rendering** (`frameloop="demand"`): frames are drawn only while the timeline
+  plays, the camera moves or a highlight eases. Paused, the scene renders zero frames. Hidden
+  tabs pause playback. See ADR-0008 and docs/CONVENTIONS.md → 3D scenes.
+- **Fallbacks:** no WebGL, or a lost WebGL context, shows the static isometric drawing with
+  the same steps, explanations and controls. Reduced motion makes packets jump between
+  stations and the camera cut instead of fly.
 - `cacheComponents` is disabled because it is incompatible with static export (ADR-0001), so
-  routes unmount normally on navigation. The studio must still dispose WebGL resources on
-  unmount and pause rendering when the tab is hidden (Phase 4).
+  routes unmount normally on navigation; GPU resources are disposed on unmount.
 
 ## Performance budgets
 
-**Measured in Phase 3** (static export, gzip, first-load JavaScript):
+**Measured in Phase 3** (static export, gzip, first-load JavaScript), for reference:
 
 | Page                       | Measured | Notes                                                   |
 | -------------------------- | -------- | ------------------------------------------------------- |
@@ -122,11 +134,23 @@ is not reachable with this stack (the baseline alone is ~190 KB). **Revised afte
 (approved):** 350 KB for the shell. Lazy-loading menus, dialogs and preview cards (est. 30–50 KB)
 is scheduled for Phase 6.
 
-| Metric                                      | Budget                                          |
-| ------------------------------------------- | ----------------------------------------------- |
-| Shell / explorer JS (gzip, first load)      | ≤ 350 KB (measured 343 KB in Phase 3)           |
-| Studio route JS incl. three.js (gzip)       | ≤ 450 KB, 3D chunk lazy-loaded                  |
-| Frame rate, integrated GPU (Iris Xe), 1080p | 60 fps while animating                          |
-| Idle GPU usage                              | Near zero — render on demand when paused        |
-| LCP (desktop, local)                        | ≤ 1.5 s                                         |
-| Accessibility                               | WCAG 2.2 AA for all 2D UI; Lighthouse a11y ≥ 95 |
+**Phase 4 split budget (approved):** the original "≤ 450 KB studio total" could not hold three.js
+on top of the shell, so the budget is split into the first load (what blocks the page) and the
+lazily loaded 3D chunk (loaded after the page is interactive, on module pages only).
+
+| Metric                                   | Budget                                 | Measured (Phase 4)                       |
+| ---------------------------------------- | -------------------------------------- | ---------------------------------------- |
+| Shell / explorer JS (gzip, first load)   | ≤ 350 KB                               | **352 KB** (2 KB over, see Known issues) |
+| 3D chunk (gzip, lazy, module pages only) | ≤ 300 KB                               | 287 KB                                   |
+| Frame rate, integrated GPU, 1080p        | 60 fps while animating                 | 60 fps, p95 frame 16.8 ms (Radeon 860M)  |
+| Idle rendering                           | Zero frames while paused               | 0 frames (asserted in e2e)               |
+| Draw calls (API Gateway scene)           | —                                      | 33–47                                    |
+| LCP (desktop, local)                     | ≤ 1.5 s                                | not yet measured (Phase 6)               |
+| Accessibility                            | WCAG 2.2 AA for 2D UI; Lighthouse ≥ 95 | axe: no serious violations               |
+
+`npm run check:bundles` checks the JS budgets against the last build. Frame rates are measured
+by hand on hardware (`?perf` overlay); headless browsers render WebGL in software.
+
+**Known issue:** the shell first load grew 9 KB in Phase 4 (session store, module data, stage,
+outline, shortcuts, draft step explanations) to 352 KB. Recovery is planned with the Phase 5
+content-loading design and the Phase 6 lazy-loading work (menus, dialogs, preview cards).

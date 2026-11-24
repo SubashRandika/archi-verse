@@ -12,3 +12,4 @@ ADRs are immutable once accepted; a changed decision gets a new ADR that superse
 | [0005](./0005-typed-typescript-content.md)        | Learning content as typed TypeScript data     | Accepted |
 | [0006](./0006-stylized-isometric-visual-style.md) | Stylized 3D isometric visual style            | Accepted |
 | [0007](./0007-drafting-plate-design-system.md)    | "Drafting plate" design system                | Accepted |
+| [0008](./0008-scene-engine-architecture.md)       | 3D scene engine architecture                  | Accepted |

@@ -53,6 +53,10 @@ test.describe("concept navigation", () => {
   test("reopens the last concept from the home page", async ({ page }) => {
     await page.goto("/learn/jwt");
     await expect(page.getByRole("heading", { level: 1, name: "JWT" })).toBeVisible();
+    // The last concept is saved after hydration (never before saved preferences have loaded).
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem("archiverse:preferences") ?? ""))
+      .toContain('"lastConceptId":"jwt"');
 
     await page.goto("/");
     await expect(page).toHaveURL(/\/learn\/jwt$/);

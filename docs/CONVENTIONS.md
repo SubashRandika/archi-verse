@@ -27,6 +27,31 @@
   breakpoints, because the plate width depends on panel sizes.
 - **No premature abstraction.** Extract a reusable piece when the second real use appears.
 
+## 3D scenes (ADR-0008)
+
+- **Scenes are data.** A module describes its layout and step beats with the types in
+  `src/lib/scene-spec`; it never imports the engine. New component kinds are a shape entry in
+  `src/engine/primitives/shapes.ts` (scaled unit boxes and cylinders), not a new model file.
+- **Per-frame values never touch React state.** GSAP tweens plain channel objects; components
+  read them in `useFrame` and update three.js objects through refs.
+- **On-demand rendering.** Anything that changes the picture must request a frame with
+  `invalidate()`. Something that animates continuously keeps the loop alive by calling it from
+  inside `useFrame` (calling it only from outside renders every other frame).
+- **Share GPU resources.** Geometries and generated textures come from `useSceneResources()`.
+  Materials owned by a component are created in `useMemo` and disposed in an effect cleanup.
+- **Lines and labels.** Outlines and wires use three's line add-ons (`three/addons/lines`), not
+  Drei `Edges`/`Line`. Labels are DOM in one layer (`LabelLayer` + `LabelProjector`), not Drei
+  `Html`.
+- **Main bundle stays three-free.** Only `features/studio/studio-scene.tsx` (loaded with
+  `next/dynamic`) may import `@/engine/scene`, `@/engine/primitives` or `@/engine/timeline`.
+  Main-bundle code imports single files such as `@/engine/scene/webgl`. `npm run check:bundles`
+  and the e2e suite verify this.
+- **Lint exception:** `react-hooks/immutability` is off for `src/engine/**/*.tsx`, because
+  imperatively updating three.js objects is the intended pattern there. It stays on everywhere
+  else.
+- **Accessibility:** every scene interaction must also be possible without the canvas (scene
+  outline, inspector component list, dock, keyboard shortcuts).
+
 ## Formatting & linting
 
 - Prettier owns formatting (`npm run format`); ESLint owns correctness and architecture rules
@@ -37,13 +62,16 @@
 
 | Kind       | Tool                       | Location                      | Use for                                           |
 | ---------- | -------------------------- | ----------------------------- | ------------------------------------------------- |
-| Unit       | Vitest                     | `*.test.ts` next to the code  | pure logic: stores, timeline compiler, schemas    |
+| Unit       | Vitest                     | `*.test.ts` next to the code  | pure logic: stores, timeline compiler, framing    |
 | Component  | Vitest + Testing Library   | `*.test.tsx` next to the code | UI behaviour via roles/labels, not implementation |
 | End-to-end | Playwright (static export) | `e2e/*.spec.ts`               | complete learning flows in a real browser         |
 
 - Query by role/label first (`getByRole`), never by CSS class.
 - `localStorage` is cleared after every unit test (`vitest.setup.ts`).
 - `npm run check` = typecheck + lint + format check + unit tests. Run it before every commit.
+- jsdom has no WebGL, so component tests run the studio's static fallback. The 3D scene is tested
+  in Playwright with software WebGL (SwiftShader), limited to 2 workers because it is CPU-bound.
+  Those tests assert behaviour and rendering activity (frame counts), never frame rates.
 
 ## Dependencies
 

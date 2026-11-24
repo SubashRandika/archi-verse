@@ -69,7 +69,7 @@ test.describe("application shell — desktop", () => {
 
     await page.getByRole("button", { name: "Next step" }).click();
     await expect(
-      inspector.getByRole("heading", { level: 2, name: "Across the network" }),
+      inspector.getByRole("heading", { level: 2, name: "The gateway checks and routes it" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Advanced", exact: true })).toHaveAttribute(
       "aria-pressed",

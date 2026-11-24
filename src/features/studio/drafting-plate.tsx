@@ -33,8 +33,8 @@ function CornerMark({ className }: { className: string }) {
 
 /**
  * The "drafting plate": the ink surface the learning scene is drawn on. Renders the
- * isometric grid, a soft vignette and corner registration marks; children are layered on
- * top (the 3D canvas from Phase 4, and the playback dock).
+ * isometric grid (seen when the 3D scene is unavailable; the 3D scene draws its own), a soft
+ * vignette and corner registration marks around the children (scene, overlays, dock).
  *
  * It is also a CSS container (`@container`) so overlays can adapt to the plate's own width,
  * which depends on panel sizes rather than the viewport.
@@ -51,7 +51,10 @@ export function DraftingPlate({ children }: { children: ReactNode }) {
         <rect width="100%" height="100%" fill="url(#plate-grid-major)" opacity="0.35" />
       </svg>
 
-      {/* Vignette keeps the centre of the plate brightest, where the scene sits. */}
+      {children}
+
+      {/* Drawn over the scene (and under positioned overlays such as the dock): the vignette
+          keeps the centre of the plate brightest, the corner marks frame the drawing. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -65,8 +68,6 @@ export function DraftingPlate({ children }: { children: ReactNode }) {
       <CornerMark className="top-3 right-3 rotate-90" />
       <CornerMark className="right-3 bottom-3 rotate-180" />
       <CornerMark className="bottom-3 left-3 -rotate-90" />
-
-      {children}
     </div>
   );
 }

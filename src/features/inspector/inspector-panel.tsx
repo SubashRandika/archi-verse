@@ -4,19 +4,43 @@ import { type ReactNode, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type ExplanationLevel, useStudioPreview } from "@/features/studio/studio-preview-context";
+import {
+  type ExplanationLevel,
+  usePreferencesStore,
+} from "@/features/preferences/preferences-store";
+import {
+  useCurrentStep,
+  useStudioModule,
+  useStudioSession,
+} from "@/features/studio/studio-session";
 import { ExplanationBlocks } from "./explanation-blocks";
-import { previewComponent, previewStepExplanations } from "./placeholder";
+import {
+  type PreviewComponentDoc,
+  previewComponentDocs,
+  previewStepExplanations,
+} from "./placeholder";
 
 type InspectorTab = "step" | "component";
 
 /**
  * Learning inspector: explanation of the current step and details of the selected
  * component, at the chosen explanation level. Switching level never resets the tab or step.
+ * Selecting a component (in the scene or the component list) opens its details.
  */
 export function InspectorPanel() {
-  const { currentStep, level, setLevel } = useStudioPreview();
+  const { step: currentStep } = useCurrentStep();
+  const selectedId = useStudioSession((session) => session.selectedId);
+  const level = usePreferencesStore((state) => state.explanationLevel);
+  const setLevel = usePreferencesStore((state) => state.setExplanationLevel);
   const [tab, setTab] = useState<InspectorTab>("step");
+
+  // A new selection brings its details into view (adjusting state during render, no effect).
+  const [shownSelection, setShownSelection] = useState(selectedId);
+  if (selectedId !== shownSelection) {
+    setShownSelection(selectedId);
+    if (selectedId) setTab("component");
+  }
+
   const blocks = previewStepExplanations[currentStep.id]?.[level];
 
   return (
@@ -63,14 +87,13 @@ export function InspectorPanel() {
               <ExplanationBlocks blocks={blocks} />
             ) : (
               <p className="text-reading text-graphite">
-                The explanation for this step is written with the API Gateway module. Open step 2,
-                “Anatomy of an HTTP request”, to see the explanation layout.
+                The explanation for this step is written with the full API Gateway module.
               </p>
             )}
           </TabsContent>
 
           <TabsContent value="component" className="px-5 pt-5 pb-8">
-            <ComponentDetails level={level} />
+            <ComponentTab selectedId={selectedId} level={level} />
           </TabsContent>
         </ScrollArea>
       </Tabs>
@@ -78,8 +101,59 @@ export function InspectorPanel() {
   );
 }
 
-function ComponentDetails({ level }: { level: ExplanationLevel }) {
-  const doc = previewComponent;
+function ComponentTab({
+  selectedId,
+  level,
+}: {
+  selectedId: string | null;
+  level: ExplanationLevel;
+}) {
+  const learningModule = useStudioModule();
+  const select = useStudioSession((session) => session.select);
+  const component = learningModule.layout.components.find(
+    (candidate) => candidate.id === selectedId,
+  );
+
+  if (!component) {
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-reading text-graphite">
+          Select a component in the scene to see what it does, or pick one here.
+        </p>
+        <ul className="flex flex-col gap-1">
+          {learningModule.layout.components.map((candidate) => (
+            <li key={candidate.id}>
+              <button
+                type="button"
+                onClick={() => select(candidate.id)}
+                className="flex w-full items-baseline justify-between gap-3 rounded-sm px-2 py-1.5 text-left text-caption text-paper hover:bg-hull-hover"
+              >
+                {candidate.label}
+                <span className="text-label text-graphite">{candidate.role}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  const doc = previewComponentDocs[component.id];
+  if (doc) return <ComponentDetails doc={doc} level={level} />;
+  return (
+    <article className="flex flex-col gap-3">
+      <header>
+        <h2 className="text-title font-semibold text-paper">{component.label}</h2>
+        <p className="text-caption text-graphite">{component.role}</p>
+      </header>
+      <p className="text-reading text-graphite">
+        Details for this component are written with the full API Gateway module.
+      </p>
+    </article>
+  );
+}
+
+function ComponentDetails({ doc, level }: { doc: PreviewComponentDoc; level: ExplanationLevel }) {
   return (
     <article className="flex flex-col gap-6">
       <header>
