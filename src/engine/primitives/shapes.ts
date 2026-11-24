@@ -1,4 +1,4 @@
-import type { ComponentKind, Vec3 } from "@/lib/scene-spec";
+import type { ComponentKind, LabelPlacement, Vec3 } from "@/lib/scene-spec";
 
 /*
  * Component shapes as data: each kind is a few unit boxes and cylinders, scaled and placed.
@@ -110,4 +110,25 @@ export function componentsBounds(
     }
   }
   return { min: min as unknown as Vec3, max: max as unknown as Vec3 };
+}
+
+/**
+ * World point a component's label is attached to, for its placement. In the isometric view the
+ * highest point on screen is the top of the back corner, the right-most is the back-right
+ * edge and the lowest is the front corner on the ground.
+ */
+export function labelAnchor(
+  component: { readonly kind: ComponentKind; readonly position: Vec3 },
+  placement: LabelPlacement = "above",
+): Vec3 {
+  const { min, max } = shapeBounds(component.kind);
+  const [x, , z] = component.position;
+  switch (placement) {
+    case "right":
+      return [x + max[0], max[1] / 2, z + min[2]];
+    case "below":
+      return [x + max[0], 0, z + max[2]];
+    default:
+      return [x + min[0], max[1], z + min[2]];
+  }
 }

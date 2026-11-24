@@ -1,6 +1,7 @@
 # ADR-0004: State tiers with Zustand and localStorage
 
-- **Status:** Accepted (Phase 0, 2026-11-24) — implemented from Phase 3
+- **Status:** Accepted (Phase 0, 2026-11-24) — implemented from Phase 3. Validation on load:
+  superseded by [ADR-0009](./0009-first-load-budget-lazy-ui.md) (plain type guards instead of Zod).
 
 ## Context
 

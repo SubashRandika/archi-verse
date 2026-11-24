@@ -3,21 +3,10 @@
 import { Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { IconButton } from "@/components/icon-button";
+import { lazyMenu } from "@/components/lazy-menu";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  PLAYBACK_SPEEDS,
-  type PlaybackSpeed,
-  usePreferencesStore,
-} from "@/features/preferences/preferences-store";
+import { usePreferencesStore } from "@/features/preferences/preferences-store";
 import type { LearningModule, ModuleLabels, ModuleScenario, ModuleStep } from "@/content/modules";
-import type { StudioStrings } from "@/features/locale/strings";
 import { useLocale, useStrings } from "@/features/locale/use-strings";
 import { useModuleLabels } from "@/features/studio/module-labels";
 import { MAIN_TRACK } from "@/features/studio/session-store";
@@ -28,8 +17,10 @@ import {
   useStudioSession,
 } from "@/features/studio/studio-session";
 import { cn } from "@/lib/utils";
+import { formatSpeed } from "./format";
 
-const formatSpeed = (speed: number) => `${speed}×`;
+const ScenarioMenu = lazyMenu(() => import("./dock-menus").then((menus) => menus.ScenarioMenu));
+const SpeedMenu = lazyMenu(() => import("./dock-menus").then((menus) => menus.SpeedMenu));
 
 /** Ruled cell of the title block. */
 function Cell({ className, children }: { className?: string; children: ReactNode }) {
@@ -72,6 +63,7 @@ export function PlaybackDock() {
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === count - 1;
   const playLabel = playing ? t.pause : stepComplete && isLast ? t.replayStep : t.play;
+  const currentScenarioTitle = (scenario && labels.scenarios[scenario.id]?.title) || t.mainPath;
 
   return (
     <section
@@ -182,10 +174,13 @@ export function PlaybackDock() {
             aria-hidden="true"
             className="font-condensed text-label text-graphite tabular-nums"
           >{`${stepIndex + 1}/${count}`}</span>
-          <span className="sr-only">{t.stepOf(stepIndex + 1, count)}</span>
         </span>
-        <span className="truncate text-caption font-medium text-paper" aria-live="polite">
+        <span aria-hidden="true" className="truncate text-caption font-medium text-paper">
           {titleOf(currentStep)}
+        </span>
+        {/* Announces each step change, e.g. "Step 5 of 12: Authentication". */}
+        <span className="sr-only" aria-live="polite">
+          {`${t.stepOf(stepIndex + 1, count)}: ${titleOf(currentStep)}`}
         </span>
       </Cell>
 
@@ -196,6 +191,16 @@ export function PlaybackDock() {
             <CellLabel>{t.scenario}</CellLabel>
           </span>
           <ScenarioMenu
+            trigger={
+              <Button
+                variant="ghost"
+                size="xs"
+                aria-label={t.scenarioButton(currentScenarioTitle)}
+                className="h-6 max-w-36 justify-start px-1 text-caption font-medium text-paper"
+              >
+                <span className="truncate">{currentScenarioTitle}</span>
+              </Button>
+            }
             learningModule={learningModule}
             labels={labels}
             strings={t}
@@ -215,7 +220,20 @@ export function PlaybackDock() {
           <span className="px-1">
             <CellLabel>{t.speed}</CellLabel>
           </span>
-          <SpeedMenu speed={speed} onChange={setSpeed} label={t.speedButton(formatSpeed(speed))} />
+          <SpeedMenu
+            trigger={
+              <Button
+                variant="ghost"
+                size="xs"
+                aria-label={t.speedButton(formatSpeed(speed))}
+                className="h-6 px-1 text-caption font-medium text-paper tabular-nums"
+              >
+                {formatSpeed(speed)}
+              </Button>
+            }
+            speed={speed}
+            onChange={setSpeed}
+          />
         </div>
       </Cell>
     </section>
@@ -245,64 +263,6 @@ function timelineChapters(
   }));
 }
 
-const MAIN_PATH_VALUE = "main-path";
-
-/** Main path or one of the module's failure scenarios. */
-function ScenarioMenu({
-  learningModule,
-  labels,
-  strings: t,
-  current,
-  onChange,
-}: {
-  learningModule: LearningModule;
-  labels: ModuleLabels;
-  strings: StudioStrings;
-  current: string | null;
-  onChange: (scenarioId: string | null) => void;
-}) {
-  const currentTitle = (current && labels.scenarios[current]?.title) || t.mainPath;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="xs"
-            aria-label={t.scenarioButton(currentTitle)}
-            className="h-6 max-w-36 justify-start px-1 text-caption font-medium text-paper"
-          />
-        }
-      >
-        <span className="truncate">{currentTitle}</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="end" className="w-72">
-        <DropdownMenuRadioGroup
-          value={current ?? MAIN_PATH_VALUE}
-          onValueChange={(value) => onChange(value === MAIN_PATH_VALUE ? null : String(value))}
-        >
-          <DropdownMenuRadioItem value={MAIN_PATH_VALUE} closeOnClick>
-            <span className="flex flex-col">
-              <span>{t.mainPath}</span>
-              <span className="text-label text-graphite">{t.mainPathSummary}</span>
-            </span>
-          </DropdownMenuRadioItem>
-          {learningModule.scenarios.map((scenario) => (
-            <DropdownMenuRadioItem key={scenario.id} value={scenario.id} closeOnClick>
-              <span className="flex flex-col">
-                <span>{labels.scenarios[scenario.id]?.title}</span>
-                <span className="text-label text-graphite">
-                  {labels.scenarios[scenario.id]?.summary}
-                </span>
-              </span>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 /**
  * The current step's tick doubles as its progress bar. The fill follows the playhead through
  * the progress channel, writing a transform directly: no React render per frame.
@@ -327,44 +287,5 @@ function CurrentStepTrack() {
         style={{ transform: "scaleX(0)" }}
       />
     </span>
-  );
-}
-
-function SpeedMenu({
-  speed,
-  onChange,
-  label,
-}: {
-  speed: PlaybackSpeed;
-  onChange: (speed: PlaybackSpeed) => void;
-  label: string;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="xs"
-            aria-label={label}
-            className="h-6 px-1 text-caption font-medium text-paper tabular-nums"
-          />
-        }
-      >
-        {formatSpeed(speed)}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="end" className="w-28">
-        <DropdownMenuRadioGroup
-          value={speed}
-          onValueChange={(value) => onChange(value as PlaybackSpeed)}
-        >
-          {PLAYBACK_SPEEDS.map((option) => (
-            <DropdownMenuRadioItem key={option} value={option} className="tabular-nums">
-              {formatSpeed(option)}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

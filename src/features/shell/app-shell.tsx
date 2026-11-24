@@ -1,22 +1,34 @@
 "use client";
 
-import { X } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useGroupRef, usePanelRef } from "react-resizable-panels";
-import { Button } from "@/components/ui/button";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  lazy,
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useGroupRef, usePanelRef } from "react-resizable-panels";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useStrings } from "@/features/locale/use-strings";
 import { usePreferencesStore } from "@/features/preferences/preferences-store";
 import { useHasHydrated } from "@/features/progress/persisted-state";
 import { ShellContext, type ShellState } from "./shell-context";
 import { useIsClient, useLayoutMode } from "./use-layout-mode";
+
+const loadSheets = () => import("./mobile-sheets");
+const NavigationSheet = lazy(() => loadSheets().then((m) => ({ default: m.NavigationSheet })));
+const ExplanationSheet = lazy(() => loadSheets().then((m) => ({ default: m.ExplanationSheet })));
+
+/** True from the first time `open` is true: a drawer's code loads when it first opens. */
+function useOpenedOnce(open: boolean) {
+  const [opened, setOpened] = useState(open);
+  if (open && !opened) setOpened(true);
+  return opened;
+}
 
 /* Panel constraints. Numbers are pixels (react-resizable-panels v4). */
 const SIDEBAR = { default: 288, min: 232, max: 400, rail: 56 } as const;
@@ -44,6 +56,11 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
   const [inspectorHidden, setInspectorHidden] = useState(false);
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false);
   const [inspectorSheetOpen, setInspectorSheetOpen] = useState(false);
+  const sidebarDrawerLoaded = useOpenedOnce(sidebarDrawerOpen);
+  // The explanation panel's handle follows the studio language. (Using the studio strings here
+  // also puts them in the shared layout chunk instead of one copy per route chunk.)
+  const t = useStrings();
+  const inspectorSheetLoaded = useOpenedOnce(inspectorSheetOpen);
 
   const toggleSidebar = useCallback(() => {
     if (layout !== "desktop") {
@@ -151,13 +168,13 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
               </ResizablePanel>
               <ResizableHandle aria-label="Resize navigation" />
               {studio}
-              <ResizableHandle aria-label="Resize explanation panel" />
+              <ResizableHandle aria-label={t.resizeExplanation} />
               {inspectorPanelElement}
             </PersistentPanelGroup>
           ) : layout === "tablet" ? (
             <PersistentPanelGroup id="shell-tablet">
               {studio}
-              <ResizableHandle aria-label="Resize explanation panel" />
+              <ResizableHandle aria-label={t.resizeExplanation} />
               {inspectorPanelElement}
             </PersistentPanelGroup>
           ) : (
@@ -165,47 +182,20 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
           )}
         </div>
 
-        {layout !== "desktop" && (
-          <Sheet open={sidebarDrawerOpen} onOpenChange={setSidebarDrawerOpen}>
-            <SheetContent side="left" className="w-[min(88vw,22rem)] gap-0 bg-hull p-0">
-              <SheetTitle className="sr-only">Learning navigation</SheetTitle>
-              <SheetDescription className="sr-only">
-                Browse categories and concepts.
-              </SheetDescription>
+        {layout !== "desktop" && sidebarDrawerLoaded && (
+          <Suspense fallback={null}>
+            <NavigationSheet open={sidebarDrawerOpen} onOpenChange={setSidebarDrawerOpen}>
               {sidebar}
-            </SheetContent>
-          </Sheet>
+            </NavigationSheet>
+          </Suspense>
         )}
 
-        {layout === "mobile" && (
-          <Sheet open={inspectorSheetOpen} onOpenChange={setInspectorSheetOpen}>
-            <SheetContent
-              side="bottom"
-              showCloseButton={false}
-              className="gap-0 rounded-t-xl bg-hull p-0 data-[side=bottom]:h-[78dvh]"
-            >
-              <div className="relative flex h-9 shrink-0 items-center justify-center border-b border-rule">
-                <span aria-hidden="true" className="h-1 w-10 rounded-full bg-rule-strong" />
-                <SheetClose
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Close explanation"
-                      className="absolute right-2 text-graphite hover:text-paper"
-                    />
-                  }
-                >
-                  <X />
-                </SheetClose>
-              </div>
-              <SheetTitle className="sr-only">Explanation</SheetTitle>
-              <SheetDescription className="sr-only">
-                Explanation for the current step and details of the selected component.
-              </SheetDescription>
+        {layout === "mobile" && inspectorSheetLoaded && (
+          <Suspense fallback={null}>
+            <ExplanationSheet open={inspectorSheetOpen} onOpenChange={setInspectorSheetOpen}>
               {inspector}
-            </SheetContent>
-          </Sheet>
+            </ExplanationSheet>
+          </Suspense>
         )}
       </TooltipProvider>
     </ShellContext.Provider>

@@ -1,6 +1,6 @@
-import * as z from "zod/mini";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { isOneOf, isOptionalString, isRecord, isString } from "@/lib/validate";
 
 /**
  * Learner progress, persisted to localStorage (ADR-0004).
@@ -15,16 +15,33 @@ import { createJSONStorage, persist } from "zustand/middleware";
 export const PROGRESS_STORAGE_KEY = "archiverse:progress";
 export const PROGRESS_STORAGE_VERSION = 1;
 
-const progressRecordSchema = z.object({
-  status: z.enum(["in-progress", "completed"]),
-  updatedAt: z.string(),
-  completedAt: z.optional(z.string()),
-  /** Last guided step visited (written from Phase 4/5). */
-  lastStepId: z.optional(z.string()),
-});
+const PROGRESS_STATUSES = ["in-progress", "completed"] as const;
 
-export type ProgressRecord = z.infer<typeof progressRecordSchema>;
+export interface ProgressRecord {
+  status: (typeof PROGRESS_STATUSES)[number];
+  updatedAt: string;
+  completedAt?: string;
+  /** Last guided step visited (written from Phase 4/5). */
+  lastStepId?: string;
+}
 export type ProgressRecords = Readonly<Record<string, ProgressRecord>>;
+
+/** A valid saved record, keeping only known fields; `undefined` when invalid. */
+function parseRecord(value: unknown): ProgressRecord | undefined {
+  if (
+    !isRecord(value) ||
+    !isOneOf(PROGRESS_STATUSES, value.status) ||
+    !isString(value.updatedAt) ||
+    !isOptionalString(value.completedAt) ||
+    !isOptionalString(value.lastStepId)
+  ) {
+    return undefined;
+  }
+  const record: ProgressRecord = { status: value.status, updatedAt: value.updatedAt };
+  if (value.completedAt !== undefined) record.completedAt = value.completedAt;
+  if (value.lastStepId !== undefined) record.lastStepId = value.lastStepId;
+  return record;
+}
 
 interface ProgressState {
   concepts: ProgressRecords;
@@ -39,16 +56,15 @@ const now = () => new Date().toISOString();
 
 /** Parses persisted progress, keeping every valid record. */
 export function parsePersistedProgress(value: unknown): ProgressRecords {
-  const container = z.object({ concepts: z.record(z.string(), z.unknown()) }).safeParse(value);
-  if (!container.success) {
+  if (!isRecord(value) || !isRecord(value.concepts)) {
     if (value !== undefined) console.warn("[archiverse] Ignoring unreadable saved progress.");
     return {};
   }
   const records: Record<string, ProgressRecord> = {};
   let dropped = 0;
-  for (const [conceptId, record] of Object.entries(container.data.concepts)) {
-    const parsed = progressRecordSchema.safeParse(record);
-    if (parsed.success) records[conceptId] = parsed.data;
+  for (const [conceptId, saved] of Object.entries(value.concepts)) {
+    const record = parseRecord(saved);
+    if (record) records[conceptId] = record;
     else dropped += 1;
   }
   if (dropped > 0)

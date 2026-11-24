@@ -3,4 +3,11 @@ export { ConnectionWire, type WireState } from "./connection-wire";
 export { Packet } from "./packet";
 export { useSceneResources, SceneResourcesProvider, type SceneResources } from "./resources";
 export { PACKET_HEIGHT, routeOf, WIRE_HEIGHT } from "./routes";
-export { type Bounds, componentsBounds, SHAPES, shapeBounds, type ShapePart } from "./shapes";
+export {
+  type Bounds,
+  componentsBounds,
+  labelAnchor,
+  SHAPES,
+  shapeBounds,
+  type ShapePart,
+} from "./shapes";

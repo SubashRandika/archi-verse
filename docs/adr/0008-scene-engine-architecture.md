@@ -83,3 +83,17 @@ additively blended lines and sprites. Screenshots of the two candidates are in `
   software). The `?perf` overlay supports that manual check.
 - The React Compiler's `react-hooks/immutability` lint rule is disabled for `src/engine/**/*.tsx`
   only, because imperatively updating three.js objects is the intended R3F pattern there.
+
+## Update (Phases 5–6, 2026-11-24)
+
+- **Overlapping beats** (Phase 5): a packet's `next` lets the following beats start while it
+  travels, for bursts. Beats are otherwise still sequential.
+- **Badges are references** (Phase 6): a status carries `{ id, count }`, and the text comes from
+  the module's per-language `badges` table. The label layer formats it per frame, so the scene
+  switches language without recompiling the timeline (GSAP still animates only an index).
+- **Label placement** (Phase 6): `labelPlacement` ("above", "right", "below") on a component;
+  a label that would leave the view falls back to above. Anchors come from the shape bounds
+  (`labelAnchor`), shared with the fallback drawing.
+- **Fallback drawing** (Phase 6): `engine/static/isometric-drawing.tsx` draws any layout as SVG
+  from the same shape data and view direction, replacing the hand-drawn Phase 2 sketch.
+- **Beat kit** (Phase 6): modules write beats with `content/modules/beats.ts`.

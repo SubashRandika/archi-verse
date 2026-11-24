@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { gotoReady } from "./support";
 
 const nav = (page: Page) => page.getByRole("navigation", { name: "Learning navigation" });
 
@@ -19,7 +20,7 @@ test.describe("concept navigation", () => {
   test("navigates between concepts from the sidebar without losing sidebar state", async ({
     page,
   }) => {
-    await page.goto("/learn/api-gateway");
+    await gotoReady(page, "/learn/api-gateway");
     await nav(page)
       .getByRole("button", { name: /^Caching Architecture/ })
       .click();
@@ -35,7 +36,7 @@ test.describe("concept navigation", () => {
   });
 
   test("shows the category the learner navigated from for shared concepts", async ({ page }) => {
-    await page.goto("/learn/cap-theorem");
+    await gotoReady(page, "/learn/cap-theorem");
     const resilience = nav(page).getByRole("button", { name: /^Resilience, Reliability/ });
     await resilience.click();
     await nav(page)
@@ -68,7 +69,7 @@ test.describe("concept navigation", () => {
   });
 
   test("searches with the / shortcut", async ({ page }) => {
-    await page.goto("/learn/api-gateway");
+    await gotoReady(page, "/learn/api-gateway");
     await expect(nav(page).getByRole("searchbox")).toBeVisible();
     await page.locator("main").click({ position: { x: 20, y: 120 } });
     await page.keyboard.press("/");

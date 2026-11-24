@@ -43,7 +43,7 @@ Status: ✅ exists · ⏳ planned.
 | Path                        | Responsibility                                                     | Phase   |
 | --------------------------- | ------------------------------------------------------------------ | ------- |
 | `src/app/`                  | Routes: `/`, `/learn` layout, `/learn/[conceptSlug]`, `@inspector` | ✅ 2–5  |
-| `src/components/`           | App-wide UI helpers (`IconButton`) + `ui/` shadcn primitives       | ✅ 2    |
+| `src/components/`           | App-wide UI helpers (`IconButton`, `lazyMenu`) + `ui/` primitives  | ✅ 2, 6 |
 | `src/features/shell/`       | Responsive frame, resizable/collapsible panels, `useShell()`       | ✅ 2    |
 | `src/features/explorer/`    | Category/concept navigation, search, progress indicators           | ✅ 2–3  |
 | `src/features/studio/`      | Studio composition, session store, 3D stage, outline, shortcuts    | ✅ 2–4  |
@@ -55,10 +55,13 @@ Status: ✅ exists · ⏳ planned.
 | `src/engine/scene/`         | Canvas, isometric camera rig + framing, labels, stats, WebGL       | ✅ 4    |
 | `src/engine/primitives/`    | Reusable 3D parts: component shapes, wires, packets, resources     | ✅ 4    |
 | `src/engine/timeline/`      | Beats → GSAP timeline compiler, step playback controller           | ✅ 4    |
+| `src/engine/static/`        | No-WebGL fallback: an SVG isometric drawing of any layout          | ✅ 6    |
 | `src/content/catalog/`      | 16 categories, 291 concepts; summaries in their own file           | ✅ 2–5  |
+| `src/content/modules/`      | Module registry, types, schema, beat kit (`beats.ts`), text blocks | ✅ 4–6  |
 | `src/content/modules/<id>/` | `structure.ts` (layout, steps, beats) + `text/` (per language)     | ✅ 4–5  |
 | `src/lib/scene-spec/`       | Scene layout, step scene and beat types shared by content/engine   | ✅ 4    |
-| `src/lib/`                  | Utilities, `useReducedMotion`, locales                             | ✅ 1+   |
+| `src/lib/`                  | Utilities, `useReducedMotion`, locales, type guards (`validate`)   | ✅ 1+   |
+| `scripts/`                  | Bundle check, `new:module`, `docs:module-text`, export fix         | ✅ 3, 6 |
 | `src/test/`                 | Test helpers (`renderInStudio`)                                    | ✅ 2    |
 
 ### Placeholders
@@ -70,8 +73,8 @@ its doc comment) and names the phase that replaces it:
 - ~~`features/inspector/placeholder.ts`~~ → replaced by the API Gateway module text in Phase 5
 - ~~`features/studio/placeholder.ts`, `studio-preview-context.tsx`~~ → replaced by the module
   data and the session store in Phase 4
-- `features/studio/static-scene.tsx` (formerly the placeholder sketch) is now the **WebGL
-  fallback**, not a placeholder
+- ~~`features/studio/static-scene.tsx`~~ (a hand-drawn sketch) → replaced in Phase 6 by
+  `engine/static/isometric-drawing.tsx`, the WebGL fallback drawn from any module's layout
 - ~~`features/explorer/placeholder.ts`~~ → replaced by the real catalog in Phase 3
 
 ## Concept catalog
@@ -120,7 +123,17 @@ API Gateway page is ~57 KB gzipped HTML). ESLint forbids importing module text f
   Its `@font-face` covers only the Sinhala block, so it downloads only when Sinhala is on screen.
 - `modules.test.ts` checks both languages have the same steps, parts, terms and captions, every
   step has both levels, glossary terms stay English and Sinhala text is in Sinhala script.
-- Review copy: `docs/modules/api-gateway.text.md` (generated from the text files).
+- Review copy: `docs/modules/<id>.text.md`, written by `npm run docs:module-text`.
+- **Scene badges** ("57 of 60 left", "slow") are references in the structure
+  (`{ id: "left", count: 57 }`) and text in each language's `badges` table, delivered with the
+  titles. The label layer formats them per frame, so switching language needs no recompile.
+
+### Adding a module (Phase 6)
+
+`npm run new:module <concept-id>` creates `<id>/structure.ts` and `<id>/text/`, registers both
+and links the catalog concept. The scaffold passes typecheck, `modules.test.ts` and
+`e2e/modules.spec.ts` as generated; the rest is writing. Steps use the beat kit
+(`content/modules/beats.ts`). The full checklist is `docs/adding-a-concept.md`.
 
 ## Persistence
 
@@ -128,8 +141,8 @@ API Gateway page is ~57 KB gzipped HTML). ESLint forbids importing module text f
   saved state after hydration and re-syncs when another tab changes it.
 - **Never write before loading.** Persist writes on every change, so anything that runs at
   startup (saving the panel layout, remembering the last concept) waits for `useHasHydrated()`.
-- Stored data is validated with `zod/mini` on load: progress record by record, preferences field
-  by field. Invalid data falls back to defaults with a console warning.
+- Stored data is validated on load with small type guards (`lib/validate.ts`, ADR-0009):
+  progress record by record, preferences field by field. Invalid data falls back to defaults with a console warning.
 - Keys: `archiverse:progress` (v1), `archiverse:preferences` (v1; `locale` added in Phase 5,
   defaulting to English when absent, so no migration is needed).
 
@@ -154,8 +167,9 @@ through a tiny progress channel (subscribe + direct DOM write), not the store.
 - **On-demand rendering** (`frameloop="demand"`): frames are drawn only while the timeline
   plays, the camera moves or a highlight eases. Paused, the scene renders zero frames. Hidden
   tabs pause playback. See ADR-0008 and docs/CONVENTIONS.md → 3D scenes.
-- **Fallbacks:** no WebGL, or a lost WebGL context, shows the static isometric drawing with
-  the same steps, explanations and controls. Reduced motion makes packets jump between
+- **Fallbacks:** no WebGL, or a lost WebGL context, shows a static isometric drawing generated
+  from the module's layout (`engine/static/isometric-drawing.tsx`, loaded only then) with the
+  same steps, explanations and controls. Reduced motion makes packets jump between
   stations and the camera cut instead of fly.
 - `cacheComponents` is disabled because it is incompatible with static export (ADR-0001), so
   routes unmount normally on navigation; GPU resources are disposed on unmount.
@@ -183,8 +197,20 @@ is scheduled for Phase 6.
 | Lazy 3D chunk (three, R3F, GSAP) | 288 KB   | 300 KB |
 | Concept summaries (lazy chunk)   | 14 KB    | —      |
 
-The shell is at its limit. Known slack for Phase 6: the studio strings module is duplicated in
-two route chunks (~2 KB), plus the lazy menus and dialogs above.
+The shell was at its limit; Phase 6 recovered the headroom.
+
+**Measured at the end of Phase 6** (ADR-0009: menus, dialogs and drawers load on first use;
+plain type guards instead of `zod/mini`; the studio strings ship once):
+
+| Budget                           | Measured | Limit                         |
+| -------------------------------- | -------- | ----------------------------- |
+| Module page first load           | 309 KB   | **333 KB** (measured + 25 KB) |
+| Planned-concept page first load  | 309 KB   | 333 KB                        |
+| Home page first load             | 185 KB   | 333 KB                        |
+| Lazy 3D chunk (three, R3F, GSAP) | 288 KB   | 300 KB                        |
+
+The shell limit in `check:bundles` was lowered from 350 to 333 KB so the headroom cannot
+disappear unnoticed; raising it again needs approval.
 
 **Phase 4 split budget (approved):** the original "≤ 450 KB studio total" could not hold three.js
 on top of the shell, so the budget is split into the first load (what blocks the page) and the
@@ -197,12 +223,22 @@ lazily loaded 3D chunk (loaded after the page is interactive, on module pages on
 | Frame rate, integrated GPU, 1080p        | 60 fps while animating                 | 60 fps, p95 frame 16.8 ms (Radeon 860M)  |
 | Idle rendering                           | Zero frames while paused               | 0 frames (asserted in e2e)               |
 | Draw calls (API Gateway scene)           | —                                      | 33–47                                    |
-| LCP (desktop, local)                     | ≤ 1.5 s                                | not yet measured (Phase 6)               |
+| LCP (desktop, local)                     | ≤ 1.5 s                                | 0.22 s median (Phase 6, unthrottled)     |
 | Accessibility                            | WCAG 2.2 AA for 2D UI; Lighthouse ≥ 95 | axe: no serious violations               |
 
 `npm run check:bundles` checks the JS budgets against the last build. Frame rates are measured
 by hand on hardware (`?perf` overlay); headless browsers render WebGL in software.
 
-**Known issue:** the shell first load grew 9 KB in Phase 4 (session store, module data, stage,
-outline, shortcuts, draft step explanations) to 352 KB. Recovery is planned with the Phase 5
-content-loading design and the Phase 6 lazy-loading work (menus, dialogs, preview cards).
+**Resolved:** the shell first load grew to 352 KB in Phase 4. Phase 5 moved module text and
+concept summaries out of the JavaScript (350 KB), and Phase 6 lazy-loaded menus and dialogs
+(309 KB).
+
+**Phase 6 measurements** (production build, AMD Radeon 860M, 1920×1080): frame time median
+16.7 ms, p95 16.8 ms while animating (60 fps); 79 draw calls; 0 frames while idle. LCP is the
+first explanation paragraph (server-rendered), 0.22 s median over 5 cold loads on a local
+server without throttling.
+
+**Static export on Windows:** Next.js writes each route segment's prefetch file into nested
+folders instead of dotted names when it builds on Windows, so prefetches would 404.
+`npm run build` runs `scripts/fix-export-segments.mjs` to rename them; it does nothing on other
+systems.

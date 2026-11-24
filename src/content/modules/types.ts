@@ -153,6 +153,8 @@ export interface LocaleText {
   readonly components: Readonly<Record<string, ComponentDoc>>;
   /** By term id. */
   readonly glossary: Readonly<Record<string, GlossaryTerm>>;
+  /** Scene badge texts by badge id; `{count}` is replaced by the badge's count. */
+  readonly badges: Readonly<Record<string, string>>;
 }
 
 export interface ModuleText {
@@ -168,4 +170,6 @@ export interface ModuleLabels {
   readonly chapters: Readonly<Record<string, string>>;
   readonly scenarios: Readonly<Record<string, ScenarioCopy>>;
   readonly steps: Readonly<Record<string, string>>;
+  /** Scene badge texts (see `LocaleText.badges`). */
+  readonly badges: Readonly<Record<string, string>>;
 }

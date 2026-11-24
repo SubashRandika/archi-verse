@@ -318,6 +318,16 @@ export const en: LocaleText = {
     },
   },
 
+  // Short texts shown in the scene, next to a component's name.
+  badges: {
+    code: "{count}",
+    left: "{count} of 60 left",
+    waiting: "waiting {count} s",
+    slow: "slow",
+    timeout: "timeout after {count} s",
+    retry: "retry in {count} s",
+    down: "down",
+  },
   glossary: {
     client: { term: "Client", definition: "The program that sends requests: here, the browser." },
     origin: {

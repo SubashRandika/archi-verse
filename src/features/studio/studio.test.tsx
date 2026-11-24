@@ -25,6 +25,12 @@ describe("Studio (without WebGL)", () => {
     renderStudio();
 
     expect(screen.getByRole("note")).toHaveTextContent(/can’t show the 3D view/);
+    // The drawing is generated from the module's layout.
+    expect(
+      await screen.findByRole("img", {
+        name: /^Drawing of the architecture: Browser, API gateway/,
+      }),
+    ).toBeInTheDocument();
 
     // Playing has no animation to wait for: the step finishes at once.
     await user.click(screen.getByRole("button", { name: "Play" }));

@@ -7,6 +7,7 @@ import {
   getCategoryConcepts,
   getConcept,
 } from "./index";
+import { modules } from "@/content/modules";
 import { categoryDefinitionSchema, conceptSummariesSchema } from "./schema";
 import { conceptSummaries } from "./summaries";
 
@@ -89,7 +90,10 @@ describe("concept catalog", () => {
 
   it("marks only concepts with a learning module as available", () => {
     const available = concepts.filter((concept) => concept.availability === "available");
-    expect(available.map((concept) => concept.id)).toEqual([DEFAULT_CONCEPT_ID]);
+    expect(available.every((concept) => concept.moduleId)).toBe(true);
+    expect(available.map((concept) => concept.moduleId).sort()).toEqual(
+      Object.keys(modules).sort(),
+    );
     expect(getConcept(DEFAULT_CONCEPT_ID)?.moduleId).toBe("api-gateway");
   });
 

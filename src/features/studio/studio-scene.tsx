@@ -17,7 +17,7 @@ import {
 } from "react";
 import { IconButton } from "@/components/icon-button";
 import type { LearningModule } from "@/content/modules";
-import { type Bounds, componentsBounds, shapeBounds } from "@/engine/primitives";
+import { type Bounds, componentsBounds, labelAnchor } from "@/engine/primitives";
 import {
   CameraRig,
   type CameraRigHandle,
@@ -33,7 +33,7 @@ import {
 import { PerfOverlay } from "@/engine/scene/perf-overlay";
 import { type CompiledTimeline, compileTimeline, TimelineController } from "@/engine/timeline";
 import { usePreferencesStore } from "@/features/preferences/preferences-store";
-import type { FlowKind, SceneComponent, Vec3 } from "@/lib/scene-spec";
+import type { FlowKind, StatusBadge } from "@/lib/scene-spec";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import type { StudioSessionState } from "./session-store";
 import {
@@ -42,6 +42,7 @@ import {
   useStudioSession,
   useStudioSessionStore,
 } from "./studio-session";
+import { useModuleLabels } from "./module-labels";
 import { allSteps, globalStepIndex, locateStep, trackSteps } from "./tracks";
 
 /** Space kept clear when framing: the header line at the top, the playback dock below. */
@@ -54,15 +55,6 @@ const readPerfFlag = () => new URLSearchParams(window.location.search).has("perf
  * Labels sit above a component's top back corner: in the isometric view that is its highest
  * point on screen, so the label never covers the component itself.
  */
-function labelAnchor(component: SceneComponent): Vec3 {
-  const bounds = shapeBounds(component.kind);
-  return [
-    component.position[0] + bounds.min[0],
-    bounds.max[1],
-    component.position[2] + bounds.min[2],
-  ];
-}
-
 /** The step the scene shows for a session state (none in explore mode). */
 function sceneStep(
   learningModule: LearningModule,
@@ -108,6 +100,14 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
     return result;
   }, [step]);
 
+  // Badge texts follow the learner's language; the timeline only holds badge references.
+  const badgeTexts = useModuleLabels().badges;
+  const formatBadge = useCallback(
+    (badge: StatusBadge) =>
+      (badgeTexts[badge.id] ?? badge.id).replace("{count}", String(badge.count ?? "")),
+    [badgeTexts],
+  );
+
   const labels = useMemo<SceneLabel[]>(
     () =>
       learningModule.layout.components
@@ -115,7 +115,9 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
         .map((component) => ({
           id: component.id,
           text: component.label,
-          anchor: labelAnchor(component),
+          anchor: labelAnchor(component, component.labelPlacement),
+          placement: component.labelPlacement ?? "above",
+          aboveAnchor: component.labelPlacement ? labelAnchor(component) : undefined,
           channel: compiled.channels.components[component.id],
           tone:
             component.id === selectedId
@@ -179,7 +181,7 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
           <CameraRig ref={rig} sceneBounds={sceneBounds} padding={FRAME_PADDING} />
           <CameraDirector rig={rig} boundsFor={boundsFor} animate={!reducedMotion} />
           <TimelineDriver compiled={compiled} learningModule={learningModule} />
-          <LabelProjector labels={labels} elementsRef={labelElements} />
+          <LabelProjector labels={labels} elementsRef={labelElements} formatBadge={formatBadge} />
         </SceneCanvas>
       </div>
       <LabelLayer labels={labels} elementsRef={labelElements} />

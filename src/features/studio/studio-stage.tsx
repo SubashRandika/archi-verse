@@ -1,11 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { isWebGLAvailable } from "@/engine/scene/webgl";
 import { useStrings } from "@/features/locale/use-strings";
-import { StaticScene } from "./static-scene";
-import { useStudioSessionStore } from "./studio-session";
+import { useCurrentStep, useStudioModule, useStudioSessionStore } from "./studio-session";
 
 function SceneLoading() {
   const t = useStrings();
@@ -25,6 +24,11 @@ const StudioScene = dynamic(() => import("./studio-scene"), {
   loading: SceneLoading,
 });
 
+// The fallback drawing is only needed without WebGL, so it loads only then.
+const IsometricDrawing = lazy(() =>
+  import("@/engine/static/isometric-drawing").then((m) => ({ default: m.IsometricDrawing })),
+);
+
 const noSubscription = () => () => {};
 
 /**
@@ -43,7 +47,13 @@ export function StudioStage() {
 
 function StaticStage({ reason }: { reason: "unsupported" | "lost" }) {
   const store = useStudioSessionStore();
+  const learningModule = useStudioModule();
+  const { step } = useCurrentStep();
   const t = useStrings();
+  const parts = learningModule.layout.components
+    .filter((component) => !component.decorative)
+    .map((component) => component.label)
+    .join(", ");
 
   // Without a timeline there is nothing to play: a step "plays" instantly to its end state.
   useEffect(() => {
@@ -57,7 +67,16 @@ function StaticStage({ reason }: { reason: "unsupported" | "lost" }) {
 
   return (
     <>
-      <StaticScene />
+      <div className="absolute inset-x-0 top-0 bottom-36 flex items-center justify-center p-8 @3xl:bottom-24">
+        <Suspense fallback={null}>
+          <IsometricDrawing
+            layout={learningModule.layout}
+            focus={step.scene.focus}
+            label={t.staticDrawing(parts)}
+            className="h-full max-h-136 w-full max-w-240"
+          />
+        </Suspense>
+      </div>
       <p
         role="note"
         className="absolute top-3 left-1/2 z-20 w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-sm border border-rule-strong bg-hull-raised/95 px-3 py-1.5 text-center text-caption text-graphite"

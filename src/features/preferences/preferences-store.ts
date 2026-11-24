@@ -1,7 +1,7 @@
-import * as z from "zod/mini";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DEFAULT_LOCALE, type Locale, LOCALES } from "@/lib/locale";
+import { isOneOf, isRecord, isRecordOf, isString } from "@/lib/validate";
 
 /**
  * Learner preferences, persisted to localStorage (ADR-0004). Each field is validated on load
@@ -28,32 +28,28 @@ const DEFAULTS = {
   lastConceptId: undefined as string | undefined,
 };
 
-const persistedPreferencesSchema = z.object({
-  explanationLevel: z.catch(z.enum(EXPLANATION_LEVELS), DEFAULTS.explanationLevel),
-  locale: z.catch(z.enum(LOCALES), DEFAULTS.locale),
-  playbackSpeed: z.catch(
-    z.number().check(z.refine((value) => (PLAYBACK_SPEEDS as readonly number[]).includes(value))),
-    DEFAULTS.playbackSpeed,
-  ),
-  panelLayouts: z.catch(
-    z.record(z.string(), z.record(z.string(), z.number().check(z.minimum(0), z.maximum(100)))),
-    DEFAULTS.panelLayouts,
-  ),
-  lastConceptId: z.catch(z.optional(z.string()), undefined),
-});
+const isPercent = (value: unknown): value is number =>
+  typeof value === "number" && value >= 0 && value <= 100;
+const isPanelLayout = (value: unknown): value is PanelLayout => isRecordOf(value, isPercent);
 
 export function parsePersistedPreferences(value: unknown): typeof DEFAULTS {
-  const parsed = persistedPreferencesSchema.safeParse(value ?? {});
-  if (!parsed.success) {
+  const saved = value ?? {};
+  if (!isRecord(saved)) {
     console.warn("[archiverse] Ignoring unreadable saved preferences.");
     return DEFAULTS;
   }
   return {
-    explanationLevel: parsed.data.explanationLevel,
-    locale: parsed.data.locale,
-    playbackSpeed: parsed.data.playbackSpeed as PlaybackSpeed,
-    panelLayouts: parsed.data.panelLayouts,
-    lastConceptId: parsed.data.lastConceptId,
+    explanationLevel: isOneOf(EXPLANATION_LEVELS, saved.explanationLevel)
+      ? saved.explanationLevel
+      : DEFAULTS.explanationLevel,
+    locale: isOneOf(LOCALES, saved.locale) ? saved.locale : DEFAULTS.locale,
+    playbackSpeed: isOneOf(PLAYBACK_SPEEDS, saved.playbackSpeed)
+      ? saved.playbackSpeed
+      : DEFAULTS.playbackSpeed,
+    panelLayouts: isRecordOf(saved.panelLayouts, isPanelLayout)
+      ? saved.panelLayouts
+      : DEFAULTS.panelLayouts,
+    lastConceptId: isString(saved.lastConceptId) ? saved.lastConceptId : undefined,
   };
 }
 

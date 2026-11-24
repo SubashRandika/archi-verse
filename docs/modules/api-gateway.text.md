@@ -1,11 +1,11 @@
 # API Gateway module text (English and Sinhala)
 
-- **Generated** from `src/content/modules/api-gateway/text/` (the source of truth since the
-  Phase 5 language change). Edit the TypeScript files, not this document.
+- **Generated** by `npm run docs:module-text` from
+  `src/content/modules/api-gateway/text/`. Edit the TypeScript files, not this document.
 - **Beginner** is written as if for a five-year-old, with an everyday example.
   **Advanced** keeps the technical depth and adds a worked example.
 - **Sinhala** uses a friendly spoken style; technical terms stay in English.
-- The learning objectives, running example and scene notes are in
+- The learning objectives and scene notes are in
   [api-gateway.md](api-gateway.md).
 
 ---
@@ -1694,3 +1694,17 @@ _Words to know:_ Status code, Retry-After · _Message:_ The gateway’s answer
 | 429-response     | The gateway’s answer                                      | Gateway එකේ උත්තරය                                         |
 | 504-response     | The gateway’s answer                                      | Gateway එකේ උත්තරය                                         |
 | 503-response     | The gateway’s answer                                      | Gateway එකේ උත්තරය                                         |
+
+## Scene badges
+
+`{count}` is replaced by a number in the scene.
+
+| Badge   | English                 | සිංහල                   |
+| ------- | ----------------------- | ---------------------- |
+| code    | {count}                 | {count}                |
+| left    | {count} of 60 left      | 60න් {count}ක් ඉතුරුයි      |
+| waiting | waiting {count} s       | තත්පර {count}ක් ඉන්නවා    |
+| slow    | slow                    | හෙමින්                   |
+| timeout | timeout after {count} s | තත්පර {count}කින් timeout |
+| retry   | retry in {count} s      | තත්පර {count}කින් retry   |
+| down    | down                    | down                   |

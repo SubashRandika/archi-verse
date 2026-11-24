@@ -16,7 +16,8 @@ import { gzipSync } from "node:zlib";
 
 const OUT = "out";
 const CHUNKS = path.join(OUT, "_next/static/chunks");
-const BUDGET_KB = { shell: 350, threeChunk: 300 };
+// Shell: 308 KB measured after Phase 6 + 25 KB headroom (ADR-0009). Raising it needs approval.
+const BUDGET_KB = { shell: 333, threeChunk: 300 };
 const PAGES = {
   "/ (resume)": "index.html",
   "/learn/api-gateway (module)": "learn/api-gateway.html",

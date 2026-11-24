@@ -1,7 +1,16 @@
 "use client";
 
 import { ArrowLeft, ChevronRight, Eye, FlaskConical, Lightbulb } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ComponentDoc, ExplanationLevel, LocaleText, ModuleText } from "@/content/modules";
@@ -29,6 +38,20 @@ import { ExplanationBlocks, MessageFigure, TermDefinitions } from "./explanation
  *
  * `text` is the module's text in every language, delivered by the inspector route as data.
  */
+/**
+ * Where focus goes after the panel switches view, when the switch started inside the panel:
+ * opening a part moves focus to its heading; going back returns it to that part's button.
+ * Selections made in the scene do not move focus.
+ */
+type FocusIntent = { readonly to: "part" } | { readonly to: "step"; readonly partId: string };
+const FocusIntentContext = createContext<RefObject<FocusIntent | null> | null>(null);
+
+function useFocusIntent() {
+  const intent = useContext(FocusIntentContext);
+  if (!intent) throw new Error("useFocusIntent must be used inside <InspectorPanel>.");
+  return intent;
+}
+
 export function InspectorPanel({ text }: { text: ModuleText }) {
   const locale = useLocale();
   const t = useStrings();
@@ -39,21 +62,42 @@ export function InspectorPanel({ text }: { text: ModuleText }) {
   const part = learningModule.layout.components.find(
     (component) => component.id === selectedId && !component.decorative,
   );
+  const panel = useRef<HTMLElement>(null);
+  const focusIntent = useRef<FocusIntent | null>(null);
+  const view = part?.id ?? "step";
+  useEffect(() => {
+    const intent = focusIntent.current;
+    focusIntent.current = null;
+    if (!intent || !panel.current) return;
+    const target =
+      intent.to === "part"
+        ? panel.current.querySelector<HTMLElement>("[data-view-heading]")
+        : (panel.current.querySelector<HTMLElement>(`[data-part-button="${intent.partId}"]`) ??
+          panel.current.querySelector<HTMLElement>("[data-view-heading]"));
+    target?.focus();
+  }, [view]);
 
   return (
-    <aside aria-label={t.inspector} lang={locale} className="flex h-full min-w-0 flex-col bg-hull">
+    <aside
+      ref={panel}
+      aria-label={t.inspector}
+      lang={locale}
+      className="flex h-full min-w-0 flex-col bg-hull"
+    >
       <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-rule px-3">
         <LanguageSwitch />
         <LevelSwitch />
       </div>
       {/* Keyed by view, so switching between step and part starts at the top. */}
-      <ScrollArea key={part?.id ?? "step"} className="min-h-0 flex-1">
+      <ScrollArea key={view} className="min-h-0 flex-1">
         <div className="px-5 pt-5 pb-8">
-          {part ? (
-            <PartView part={part} doc={copy.components[part.id]} level={level} strings={t} />
-          ) : (
-            <StepView text={text} copy={copy} level={level} strings={t} />
-          )}
+          <FocusIntentContext.Provider value={focusIntent}>
+            {part ? (
+              <PartView part={part} doc={copy.components[part.id]} level={level} strings={t} />
+            ) : (
+              <StepView text={text} copy={copy} level={level} strings={t} />
+            )}
+          </FocusIntentContext.Provider>
         </div>
       </ScrollArea>
     </aside>
@@ -153,7 +197,13 @@ function StepView({
             ? `${t.scenarioTitle(copy.scenarios[scenario.id]?.title ?? "")} · ${t.stepOf(index + 1, count)}`
             : t.stepOf(index + 1, count)}
         </p>
-        <h2 className="text-title font-semibold text-paper">{stepCopy.title}</h2>
+        <h2
+          data-view-heading
+          tabIndex={-1}
+          className="text-title font-semibold text-paper outline-none"
+        >
+          {stepCopy.title}
+        </h2>
       </header>
 
       <section
@@ -269,6 +319,7 @@ function StepParts({ copy, strings: t }: { copy: LocaleText; strings: StudioStri
   const learningModule = useStudioModule();
   const { step } = useCurrentStep();
   const select = useStudioSession((session) => session.select);
+  const focusIntentRef = useFocusIntent();
   const parts = learningModule.layout.components.filter(
     (component) =>
       !component.decorative &&
@@ -285,7 +336,11 @@ function StepParts({ copy, strings: t }: { copy: LocaleText; strings: StudioStri
           <li key={part.id}>
             <button
               type="button"
-              onClick={() => select(part.id)}
+              data-part-button={part.id}
+              onClick={() => {
+                focusIntentRef.current = { to: "part" };
+                select(part.id);
+              }}
               className="rounded-sm border border-rule-strong bg-hull-raised px-2.5 py-1 text-caption text-paper transition-colors hover:border-flow-selection/60 hover:text-flow-selection"
             >
               {part.label}
@@ -398,12 +453,16 @@ function PartView({
 }) {
   const select = useStudioSession((session) => session.select);
   const { index } = useCurrentStep();
+  const focusIntentRef = useFocusIntent();
 
   return (
     <article className="flex flex-col gap-6">
       <button
         type="button"
-        onClick={() => select(null)}
+        onClick={() => {
+          focusIntentRef.current = { to: "step", partId: part.id };
+          select(null);
+        }}
         className="-ml-1 flex items-center gap-1.5 self-start rounded-sm px-1 py-0.5 text-caption text-graphite hover:text-paper"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
@@ -411,7 +470,13 @@ function PartView({
       </button>
 
       <header>
-        <h2 className="text-title font-semibold text-paper">{doc?.name ?? part.label}</h2>
+        <h2
+          data-view-heading
+          tabIndex={-1}
+          className="text-title font-semibold text-paper outline-none"
+        >
+          {doc?.name ?? part.label}
+        </h2>
         <p className="text-caption text-graphite">{doc?.kind ?? part.role}</p>
         {doc && (
           <p className="mt-3 text-reading text-paper/90">

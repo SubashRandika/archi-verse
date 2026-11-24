@@ -3,7 +3,8 @@
 ## Code
 
 - **TypeScript strict** plus `noUncheckedIndexedAccess`, `noImplicitOverride`. No `any`; prefer
-  `unknown` + narrowing (Zod at trust boundaries such as `localStorage`).
+  `unknown` + narrowing: small type guards (`lib/validate.ts`) for saved data in the browser,
+  Zod for content schemas in tests (ADR-0009).
 - **Imports** use the `@/` alias for anything outside the current folder. Type-only imports use
   inline `type` (`import { type Foo } from ...`) — enforced by ESLint.
 - **Server Components by default.** Add `"use client"` only for state, effects, event handlers or
@@ -25,6 +26,11 @@
   happened and what to do next.
 - **Responsive overlays inside the plate** use container queries (`@3xl:` etc.), not viewport
   breakpoints, because the plate width depends on panel sizes.
+- **Menus, dialogs and drawers load on first use** (ADR-0009). A dropdown menu is created with
+  `lazyMenu(() => import("./x-menus").then((m) => m.XMenu))`: the caller builds the trigger, the
+  lazily loaded file holds `DropdownMenu` with `useLazyMenuState(defaultOpen)`. Dialogs and
+  drawers mount with `React.lazy` the first time they open. Nothing from `ui/dropdown-menu`,
+  `ui/alert-dialog` or `ui/sheet` belongs in first-load code.
 - **No premature abstraction.** Extract a reusable piece when the second real use appears.
 
 ## 3D scenes (ADR-0008)
@@ -56,6 +62,17 @@
   packet arrives.
 - **Steps end before the boundary.** Every step starts from a clean slate set at its start
   time, so playback stops 1 ms before the next step's start (`TimelineController`).
+- **Write beats with the kit** (`content/modules/beats.ts`): `send`, `work`, `stage`, `signal`,
+  `status`, `wait`, plus `timed` (beats at absolute times) and `burst` (packets in flight at
+  once). Wrap a kit helper locally when a module repeats the same arguments.
+- **Badges are references**, never text: `status("gateway", "info", badge("left", 57))`. The
+  text is in the module's `badges` table in each language (`"{count} of 60 left"`), so the
+  scene follows the learner's language without recompiling its timeline.
+- **Labels:** a component's name sits above it. When a wire or another label would cross it,
+  set `labelPlacement: "right"` or `"below"` in the layout; at the edge of the view it falls
+  back to above. Check every step and scenario in screenshots after changing a layout.
+- **The no-WebGL fallback is generated** from the layout (`engine/static/isometric-drawing`),
+  so a new module needs no extra work for it.
 
 ## Writing module text
 
@@ -71,8 +88,10 @@
   translated.
 - Language-free references (a step's terms and message, message code, example code) live once
   in `text/shared.ts`.
-- `modules.test.ts` fails when a language is missing a step, part, term or caption. After
-  changing text, regenerate the review copy in `docs/modules/<id>.text.md`.
+- `modules.test.ts` fails when a language is missing a step, part, term, caption or badge.
+  After changing text, regenerate the review copy: `npm run docs:module-text -- <id>` writes
+  `docs/modules/<id>.text.md`.
+- A new module starts from `npm run new:module <concept-id>`; see `docs/adding-a-concept.md`.
 - Studio interface strings go in `features/locale/strings.ts` (both languages, same keys,
   enforced by the type).
 
@@ -89,6 +108,12 @@
 | Unit       | Vitest                     | `*.test.ts` next to the code  | pure logic: stores, timeline compiler, framing    |
 | Component  | Vitest + Testing Library   | `*.test.tsx` next to the code | UI behaviour via roles/labels, not implementation |
 | End-to-end | Playwright (static export) | `e2e/*.spec.ts`               | complete learning flows in a real browser         |
+
+- `e2e/modules.spec.ts` opens every step and scenario step of **every** module and fails on any
+  console error, so a new module is covered as soon as it is registered. Module-specific
+  behaviour goes in its own spec (`e2e/<id>-module.spec.ts`).
+- Tests that click right after opening a page use `gotoReady()` (`e2e/support.ts`), which waits
+  for hydration: a click on the static HTML before it is lost.
 
 - Query by role/label first (`getByRole`), never by CSS class.
 - `localStorage` is cleared after every unit test (`vitest.setup.ts`).

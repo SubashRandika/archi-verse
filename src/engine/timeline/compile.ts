@@ -4,6 +4,7 @@ import {
   BEAT_DEFAULTS,
   type FlowKind,
   type SceneLayout,
+  type StatusBadge,
   type StatusTone,
   type StepScene,
 } from "@/lib/scene-spec";
@@ -44,19 +45,19 @@ export interface ComponentChannel {
   /** Persistent condition set by `status` beats ("none" when healthy). */
   status: StatusTone | "none";
   /**
-   * Badge set by `status` beats, as an index into `badgeTexts` (0 = none). An index, not the
-   * text, because GSAP would turn numeric-looking text such as "401" into numbers.
+   * Badge set by `status` beats, as an index into `badges` (0 = none). GSAP animates numbers
+   * and strings, not objects, so the channel holds an index.
    */
   badge: number;
-  readonly badgeTexts: readonly string[];
+  readonly badges: readonly (StatusBadge | undefined)[];
   /** Label of the stage currently busy ("" when none); shown as a badge. */
   stageLabel: string;
   readonly stages: Readonly<Record<string, StageChannel>>;
 }
 
-/** The badge text of a component ("" when none). */
-export function badgeText(channel: ComponentChannel): string {
-  return channel.badgeTexts[channel.badge] ?? "";
+/** The badge a component shows now (`undefined` when none). Its text depends on the language. */
+export function badgeOf(channel: ComponentChannel): StatusBadge | undefined {
+  return channel.badges[channel.badge];
 }
 
 export interface WireChannel {
@@ -109,11 +110,15 @@ export function compileTimeline(
   // detached timeline is garbage-collected with the studio instead of living in the root.
   gsap.globalTimeline.remove(timeline);
 
-  const badgeTexts: string[] = [""];
-  const badge = (text: string | undefined) => {
-    if (!text) return 0;
-    const index = badgeTexts.indexOf(text);
-    return index === -1 ? badgeTexts.push(text) - 1 : index;
+  const badges: (StatusBadge | undefined)[] = [undefined];
+  const badgeKeys = [""];
+  const badge = (value: StatusBadge | undefined) => {
+    if (!value) return 0;
+    const key = `${value.id}#${value.count ?? ""}`;
+    const index = badgeKeys.indexOf(key);
+    if (index !== -1) return index;
+    badges.push(value);
+    return badgeKeys.push(key) - 1;
   };
   const components: Record<string, ComponentChannel> = Object.fromEntries(
     layout.components.map((component) => [
@@ -123,7 +128,7 @@ export function compileTimeline(
         tone: "active",
         status: "none",
         badge: 0,
-        badgeTexts,
+        badges,
         stageLabel: "",
         stages: Object.fromEntries(
           (component.stages ?? []).map((stage) => [stage.id, { activity: 0, tone: "active" }]),

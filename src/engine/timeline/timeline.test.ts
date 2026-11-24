@@ -1,5 +1,5 @@
 import type { SceneLayout, StepScene } from "@/lib/scene-spec";
-import { badgeText, compileTimeline, STEP_HOLD, STEP_LEAD_IN } from "./compile";
+import { badgeOf, compileTimeline, STEP_HOLD, STEP_LEAD_IN } from "./compile";
 import { TimelineController } from "./controller";
 
 const layout: SceneLayout = {
@@ -119,7 +119,7 @@ describe("compileTimeline: states, stages and signals", () => {
         focus: ["g"],
         beats: [
           { type: "process", component: "g", stage: "auth", tone: "error", duration: 1 },
-          { type: "status", component: "g", status: { tone: "error", badge: "401" } },
+          { type: "status", component: "g", status: { tone: "error", badge: { id: "401" } } },
           { type: "signal", connection: "a-g", duration: 1 },
         ],
       },
@@ -127,7 +127,7 @@ describe("compileTimeline: states, stages and signals", () => {
     {
       scene: {
         focus: ["a"],
-        initial: { status: { a: { tone: "warning", badge: "slow" } } },
+        initial: { status: { a: { tone: "warning", badge: { id: "slow" } } } },
         beats: [{ type: "packet", connection: "a-g", flow: "error", stay: true, duration: 1 }],
       },
     },
@@ -147,20 +147,20 @@ describe("compileTimeline: states, stages and signals", () => {
     timeline.seek(STEP_LEAD_IN + 1.5);
     const g = channels.components.g!;
     expect(g).toMatchObject({ status: "error", stageLabel: "" });
-    expect(badgeText(g)).toBe("401");
+    expect(badgeOf(g)).toEqual({ id: "401" });
     expect(channels.wires["a-g"]?.activity).toBe(1);
 
     timeline.seek(spans[1]!.start + 0.1);
     expect(g.status).toBe("none");
-    expect(badgeText(g)).toBe("");
+    expect(badgeOf(g)).toBeUndefined();
     // The next step's declared initial state applies from its start.
     const a = channels.components.a!;
     expect(a.status).toBe("warning");
-    expect(badgeText(a)).toBe("slow");
+    expect(badgeOf(a)).toEqual({ id: "slow" });
 
     timeline.seek(0.1); // and seeking back restores the first step's clean start
     expect(a.status).toBe("none");
-    expect(badgeText(a)).toBe("");
+    expect(badgeOf(a)).toBeUndefined();
   });
 
   it("keeps a staying packet at the start of its route", () => {
@@ -189,7 +189,7 @@ describe("overlapping packets", () => {
           beats: [
             { type: "packet", connection: "a-b", flow: "request", duration: 1, next: 0.25 },
             { type: "packet", connection: "a-b", flow: "request", duration: 1, next: 0 },
-            { type: "status", component: "b", status: { tone: "info", badge: "x" } },
+            { type: "status", component: "b", status: { tone: "info", badge: { id: "x" } } },
           ],
         },
       },
@@ -248,7 +248,12 @@ describe("TimelineController", () => {
   it("stops before the next step's starting state shows", async () => {
     const compiled = compileTimeline(layout, [
       steps[0]!,
-      { scene: { ...steps[1]!.scene, initial: { status: { b: { tone: "info", badge: "58" } } } } },
+      {
+        scene: {
+          ...steps[1]!.scene,
+          initial: { status: { b: { tone: "info", badge: { id: "58" } } } },
+        },
+      },
     ]);
     const onStepEnd = vi.fn();
     const controller = new TimelineController(compiled, { onStepEnd });
@@ -279,5 +284,102 @@ describe("TimelineController", () => {
     expect(controller.play()).toBe(true);
     await vi.waitFor(() => expect(onStepEnd).toHaveBeenCalledOnce(), { timeout: 2000 });
     controller.dispose();
+  });
+});
+
+describe("timing edge cases", () => {
+  /** One step with a burst: three packets in flight at once, and a badge as the last arrives. */
+  const burstSteps: { scene: StepScene }[] = [
+    {
+      scene: {
+        focus: ["a", "b"],
+        beats: [
+          { type: "packet", connection: "a-b", flow: "request", duration: 1, next: 0 },
+          { type: "wait", duration: 0.3 },
+          { type: "packet", connection: "a-b", flow: "request", duration: 1, next: 0 },
+          { type: "wait", duration: 0.3 },
+          { type: "packet", connection: "a-b", flow: "request", duration: 1, next: 0 },
+          { type: "wait", duration: 1 },
+          { type: "status", component: "b", status: { tone: "warning", badge: { id: "left" } } },
+        ],
+      },
+    },
+    steps[1]!,
+  ];
+
+  it("changes speed mid-step without jumping the playhead", async () => {
+    const compiled = compile();
+    const progress: number[] = [];
+    const onStepEnd = vi.fn();
+    const controller = new TimelineController(compiled, {
+      onUpdate: (stepIndex, value) => stepIndex === 0 && progress.push(value),
+      onStepEnd,
+    });
+    controller.setSpeed(4);
+    controller.play();
+    await vi.waitFor(() => expect(controller.stepProgress).toBeGreaterThan(0.1));
+
+    controller.setSpeed(40);
+    await vi.waitFor(() => expect(onStepEnd).toHaveBeenCalledOnce(), { timeout: 2000 });
+    // Progress only ever moved forwards, and ended exactly at the end of the step.
+    expect(progress).toEqual([...progress].sort((a, b) => a - b));
+    expect(controller.stepProgress).toBe(1);
+    controller.dispose();
+  });
+
+  it("applies a speed chosen while paused to the next play", async () => {
+    const compiled = compile();
+    const onStepEnd = vi.fn();
+    const controller = new TimelineController(compiled, { onStepEnd });
+    controller.setSpeed(40);
+    const started = performance.now();
+    controller.play();
+    await vi.waitFor(() => expect(onStepEnd).toHaveBeenCalledOnce(), { timeout: 2000 });
+    // Step 1 lasts several seconds at normal speed.
+    expect(performance.now() - started).toBeLessThan(1000);
+    controller.dispose();
+  });
+
+  it("clears packets in flight when jumping away mid-burst, and restores them when jumping back", async () => {
+    const compiled = compileTimeline(layout, burstSteps);
+    const controller = new TimelineController(compiled);
+    const visible = () => compiled.channels.packets.filter((packet) => packet.opacity > 0).length;
+    controller.setSpeed(4);
+    controller.play();
+    await vi.waitFor(() => expect(visible()).toBeGreaterThanOrEqual(2));
+
+    controller.seek(1);
+    expect(controller.isPlaying).toBe(false);
+    expect(visible()).toBe(0);
+    expect(compiled.channels.components.b?.status).toBe("none");
+
+    controller.seek(0);
+    expect(visible()).toBe(0);
+    controller.dispose();
+  });
+
+  it("ends a burst with every packet delivered and the final state shown", async () => {
+    const compiled = compileTimeline(layout, burstSteps);
+    const onStepEnd = vi.fn();
+    const controller = new TimelineController(compiled, { onStepEnd });
+    controller.setSpeed(40);
+    controller.play();
+    await vi.waitFor(() => expect(onStepEnd).toHaveBeenCalledWith(0), { timeout: 2000 });
+
+    expect(compiled.channels.packets.every((packet) => packet.opacity === 0)).toBe(true);
+    expect(compiled.channels.components.b?.status).toBe("warning");
+    controller.dispose();
+  });
+
+  it("keeps the same step timing and end state with reduced motion", () => {
+    const normal = compileTimeline(layout, burstSteps);
+    const reduced = compileTimeline(layout, burstSteps, { reducedMotion: true });
+    expect(reduced.steps).toEqual(normal.steps);
+
+    for (const compiled of [normal, reduced]) {
+      compiled.timeline.seek(compiled.steps[0]!.end - 0.01, false);
+      expect(compiled.channels.components.b?.status).toBe("warning");
+      expect(compiled.channels.packets.every((packet) => packet.opacity === 0)).toBe(true);
+    }
   });
 });

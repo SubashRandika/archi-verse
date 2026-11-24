@@ -88,9 +88,8 @@ describe("InspectorPanel", () => {
 
     await user.click(within(parts).getByRole("button", { name: "Identity provider" }));
 
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Identity provider" }),
-    ).toBeInTheDocument();
+    // Focus follows the learner into the part's view.
+    expect(screen.getByRole("heading", { level: 2, name: "Identity provider" })).toHaveFocus();
     expect(screen.getByRole("region", { name: "Like in real life" })).toHaveTextContent(
       /ticket office/,
     );
@@ -102,6 +101,12 @@ describe("InspectorPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Back to step 5" }));
     expect(screen.getByRole("heading", { level: 2, name: "Authentication" })).toBeInTheDocument();
+    // ...and returns to the button that opened the part.
+    expect(
+      within(screen.getByRole("region", { name: "Parts in this step" })).getByRole("button", {
+        name: "Identity provider",
+      }),
+    ).toHaveFocus();
   });
 
   it("offers a scenario and completion at the end of the main path", async () => {

@@ -10,7 +10,8 @@ const currentStepTitle = () =>
 describe("PlaybackDock", () => {
   it("starts on the first step of the main path, grouped in four chapters", () => {
     renderInStudio(<PlaybackDock />);
-    expect(within(controls()).getByText("Step 1 of 12")).toBeInTheDocument();
+    // Step changes are announced with the position and the title.
+    expect(within(controls()).getByText("Step 1 of 12: Meet the client")).toBeInTheDocument();
     expect(currentStepTitle()).toHaveAccessibleName("Step 1: Meet the client");
     expect(screen.getByRole("list", { name: "Timeline" })).toHaveTextContent(
       /The request.*The gateway.*The backend.*The return trip/,
@@ -58,7 +59,9 @@ describe("PlaybackDock", () => {
     await user.click(screen.getByRole("button", { name: "Scenario, Main path" }));
     await user.click(await screen.findByRole("menuitemradio", { name: /^401 Unauthorized/ }));
 
-    expect(within(controls()).getByText("Step 1 of 3")).toBeInTheDocument();
+    expect(
+      within(controls()).getByText("Step 1 of 3: An expired token arrives"),
+    ).toBeInTheDocument();
     expect(currentStepTitle()).toHaveAccessibleName("Step 1: An expired token arrives");
     expect(controls()).toHaveTextContent("401 Unauthorized");
 

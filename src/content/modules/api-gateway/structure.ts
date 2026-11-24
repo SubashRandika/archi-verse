@@ -1,4 +1,15 @@
 import type { Beat, SceneLayout } from "@/lib/scene-spec";
+import {
+  badge,
+  burst,
+  send,
+  signal,
+  stage as stageOf,
+  status,
+  wait,
+  work,
+  type WorkTone,
+} from "../beats";
 import type { LearningModule } from "../types";
 
 /**
@@ -53,6 +64,8 @@ const layout: SceneLayout = {
       label: "Orders service #1",
       role: "Backend service",
       position: [2.5, 0, 0],
+      // Above, the wire to Orders service #2 would cross it.
+      labelPlacement: "right",
     },
     {
       id: "orders-2",
@@ -67,6 +80,8 @@ const layout: SceneLayout = {
       label: "Users service",
       role: "Backend service",
       position: [2.5, 0, 3.4],
+      // Above, it would sit on the gateway's wire to Orders service #1.
+      labelPlacement: "below",
     },
     {
       id: "postgres",
@@ -74,6 +89,8 @@ const layout: SceneLayout = {
       label: "PostgreSQL",
       role: "Data store",
       position: [7.5, 0, -1.5],
+      // Beside Orders service #1's label otherwise.
+      labelPlacement: "right",
     },
   ],
   connections: [
@@ -127,80 +144,24 @@ const layout: SceneLayout = {
 const ALL = layout.components.map((component) => component.id);
 const NETWORK = ["browser", "hop-1", "hop-2", "gateway"];
 
-// Small builders keep the step list readable.
-const send = (
-  connection: string,
-  flow: "request" | "response" | "error",
-  options: {
-    message?: string;
-    duration?: number;
-    next?: number;
-    back?: boolean;
-    stay?: boolean;
-  } = {},
-): Beat => ({
-  type: "packet",
-  connection,
-  flow,
-  reverse: options.back,
-  stay: options.stay,
-  duration: options.duration,
-  next: options.next,
-  message: options.message,
-});
+/** One of the gateway's checks working. */
+const stage = (id: string, duration?: number, tone?: WorkTone): Beat =>
+  stageOf("gateway", id, duration, tone);
 
 /**
- * A burst: `count` requests in flight at once, launched `every` seconds apart. The gateway's
- * allowance badge counts down as each one arrives, from `left - 1` to `left - count`.
+ * `count` requests from the browser in flight at once. The gateway's allowance badge counts
+ * down as each one arrives, from `left - 1` to `left - count`.
  */
-function burst(count: number, left: number, every = 0.3, travel = 1): Beat[] {
-  const launches = Array.from({ length: count }, (_, i) => i * every);
-  const arrivals = launches.map((at) => at + travel);
-  const events = [
-    ...launches.map((at) => ({
-      at,
-      beat: send("browser-gateway", "request", {
-        duration: travel,
-        next: 0,
-        message: "request",
-      }),
-    })),
-    ...arrivals.map((at, i) => {
-      const remaining = left - i - 1;
-      return {
-        at,
-        beat: status("gateway", remaining === 0 ? "warning" : "info", `${remaining} of 60 left`),
-      };
-    }),
-  ].sort((a, b) => a.at - b.at);
-  // Turn absolute times into a sequence: each event, then a wait until the next one.
-  const beats: Beat[] = [];
-  let now = 0;
-  for (const { at, beat } of events) {
-    if (at > now) beats.push(wait(at - now));
-    now = Math.max(now, at);
-    beats.push(beat);
-  }
-  return beats;
-}
-const work = (
-  component: string,
-  duration?: number,
-  options: { stage?: string; tone?: "active" | "warning" | "error" } = {},
-): Beat => ({ type: "process", component, duration, ...options });
-const stage = (id: string, duration?: number, tone?: "active" | "warning" | "error"): Beat =>
-  work("gateway", duration, { stage: id, tone });
-const signal = (connection: string, duration?: number): Beat => ({
-  type: "signal",
-  connection,
-  duration,
-});
-const status = (
-  component: string,
-  tone: "info" | "warning" | "error" | "down" | null,
-  badge?: string,
-): Beat => ({ type: "status", component, status: tone ? { tone, badge } : null });
-const wait = (duration: number): Beat => ({ type: "wait", duration });
+const requestBurst = (count: number, left: number): Beat[] =>
+  burst({
+    connection: "browser-gateway",
+    count,
+    message: "request",
+    onArrive: (index) => {
+      const remaining = left - index - 1;
+      return status("gateway", remaining === 0 ? "warning" : "info", badge("left", remaining));
+    },
+  });
 
 export const apiGatewayModule: LearningModule = {
   id: "api-gateway",
@@ -258,8 +219,8 @@ export const apiGatewayModule: LearningModule = {
       chapterId: "gateway",
       scene: {
         focus: ["gateway"],
-        initial: { status: { gateway: { tone: "info", badge: "58 of 60 left" } } },
-        beats: [stage("rate-limit", 1.2), status("gateway", "info", "57 of 60 left"), wait(1)],
+        initial: { status: { gateway: { tone: "info", badge: badge("left", 58) } } },
+        beats: [stage("rate-limit", 1.2), status("gateway", "info", badge("left", 57)), wait(1)],
       },
     },
     {
@@ -381,7 +342,7 @@ export const apiGatewayModule: LearningModule = {
             beats: [
               send("browser-gateway", "request", { message: "expired-request" }),
               stage("auth", 1, "error"),
-              status("gateway", "error", "401"),
+              status("gateway", "error", badge("code", 401)),
               wait(0.6),
             ],
           },
@@ -390,7 +351,7 @@ export const apiGatewayModule: LearningModule = {
           id: "401-gateway-answers",
           scene: {
             focus: NETWORK,
-            initial: { status: { gateway: { tone: "error", badge: "401" } } },
+            initial: { status: { gateway: { tone: "error", badge: badge("code", 401) } } },
             beats: [send("browser-gateway", "error", { back: true, message: "401-response" })],
           },
         },
@@ -418,19 +379,19 @@ export const apiGatewayModule: LearningModule = {
           id: "429-burst",
           scene: {
             focus: NETWORK,
-            initial: { status: { gateway: { tone: "info", badge: "5 of 60 left" } } },
-            beats: [...burst(5, 5), wait(0.6)],
+            initial: { status: { gateway: { tone: "info", badge: badge("left", 5) } } },
+            beats: [...requestBurst(5, 5), wait(0.6)],
           },
         },
         {
           id: "429-too-many",
           scene: {
             focus: NETWORK,
-            initial: { status: { gateway: { tone: "warning", badge: "0 of 60 left" } } },
+            initial: { status: { gateway: { tone: "warning", badge: badge("left", 0) } } },
             beats: [
               send("browser-gateway", "request", { duration: 1.2, message: "request" }),
               stage("rate-limit", 0.8, "error"),
-              status("gateway", "error", "429"),
+              status("gateway", "error", badge("code", 429)),
               send("browser-gateway", "error", { back: true, message: "429-response" }),
             ],
           },
@@ -439,15 +400,15 @@ export const apiGatewayModule: LearningModule = {
           id: "429-back-off",
           scene: {
             focus: NETWORK,
-            initial: { status: { gateway: { tone: "error", badge: "429" } } },
+            initial: { status: { gateway: { tone: "error", badge: badge("code", 429) } } },
             beats: [
-              status("browser", "warning", "waiting 20 s"),
+              status("browser", "warning", badge("waiting", 20)),
               wait(2.2),
               status("browser", null),
-              status("gateway", "info", "20 of 60 left"),
+              status("gateway", "info", badge("left", 20)),
               send("browser-gateway", "request", { message: "request" }),
               stage("rate-limit", 0.6),
-              status("gateway", "info", "19 of 60 left"),
+              status("gateway", "info", badge("left", 19)),
               wait(0.6),
             ],
           },
@@ -465,11 +426,11 @@ export const apiGatewayModule: LearningModule = {
             frame: ["gateway", "orders-1", "orders-2"],
             beats: [
               send("gateway-orders-1", "request", { message: "forwarded" }),
-              status("orders-1", "warning", "slow"),
+              status("orders-1", "warning", badge("slow")),
               work("orders-1", 1, { tone: "warning" }),
-              status("gateway", "warning", "waiting 1 s"),
+              status("gateway", "warning", badge("waiting", 1)),
               work("orders-1", 1, { tone: "warning" }),
-              status("gateway", "error", "timeout after 2 s"),
+              status("gateway", "error", badge("timeout", 2)),
               wait(0.6),
             ],
           },
@@ -481,8 +442,8 @@ export const apiGatewayModule: LearningModule = {
             frame: [...NETWORK, "orders-1"],
             initial: {
               status: {
-                "orders-1": { tone: "warning", badge: "slow" },
-                gateway: { tone: "error", badge: "504" },
+                "orders-1": { tone: "warning", badge: badge("slow") },
+                gateway: { tone: "error", badge: badge("code", 504) },
               },
             },
             beats: [send("browser-gateway", "error", { back: true, message: "504-response" })],
@@ -493,9 +454,9 @@ export const apiGatewayModule: LearningModule = {
           scene: {
             focus: [...NETWORK, "orders-2"],
             frame: [...NETWORK, "orders-1", "orders-2"],
-            initial: { status: { "orders-1": { tone: "warning", badge: "slow" } } },
+            initial: { status: { "orders-1": { tone: "warning", badge: badge("slow") } } },
             beats: [
-              status("browser", "warning", "retry in 1 s"),
+              status("browser", "warning", badge("retry", 1)),
               wait(1.2),
               status("browser", null),
               send("browser-gateway", "request", { duration: 1.2, message: "request" }),
@@ -526,7 +487,7 @@ export const apiGatewayModule: LearningModule = {
           scene: {
             focus: ["gateway", "orders-1", "orders-2"],
             beats: [
-              status("orders-1", "down", "down"),
+              status("orders-1", "down", badge("down")),
               signal("gateway-orders-1", 0.6),
               signal("gateway-orders-2", 0.6),
               signal("gateway-orders-1", 0.6),
@@ -539,7 +500,7 @@ export const apiGatewayModule: LearningModule = {
           scene: {
             focus: [...NETWORK, "orders-2"],
             frame: [...NETWORK, "orders-1", "orders-2"],
-            initial: { status: { "orders-1": { tone: "down", badge: "down" } } },
+            initial: { status: { "orders-1": { tone: "down", badge: badge("down") } } },
             beats: [
               stage("route", 0.6),
               send("gateway-orders-2", "request", { message: "forwarded" }),
@@ -557,12 +518,12 @@ export const apiGatewayModule: LearningModule = {
           id: "503-all-down",
           scene: {
             focus: [...NETWORK, "orders-1", "orders-2"],
-            initial: { status: { "orders-1": { tone: "down", badge: "down" } } },
+            initial: { status: { "orders-1": { tone: "down", badge: badge("down") } } },
             beats: [
-              status("orders-2", "down", "down"),
+              status("orders-2", "down", badge("down")),
               signal("gateway-orders-2", 0.6),
               stage("route", 0.8, "error"),
-              status("gateway", "error", "503"),
+              status("gateway", "error", badge("code", 503)),
               send("browser-gateway", "error", { back: true, message: "503-response" }),
             ],
           },

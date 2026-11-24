@@ -12,7 +12,7 @@ const id = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "kebab-case id");
 const vec3 = z.tuple([z.number(), z.number(), z.number()]);
 const status = z.object({
   tone: z.enum(["info", "warning", "error", "down"]),
-  badge: z.string().min(1).optional(),
+  badge: z.object({ id, count: z.number().int().min(0).optional() }).optional(),
 });
 
 const beat = z.discriminatedUnion("type", [
@@ -64,6 +64,7 @@ export const learningModuleSchema: z.ZodType<LearningModule> = z.object({
           position: vec3,
           stages: z.array(z.object({ id, label: z.string().min(2) })).optional(),
           decorative: z.boolean().optional(),
+          labelPlacement: z.enum(["above", "right", "below"]).optional(),
         }),
       )
       .min(2),
@@ -151,6 +152,7 @@ const localeTextSchema = z.object({
     z.string().regex(/^[a-z0-9-]+$/),
     z.object({ term: text, definition: z.string().min(10) }),
   ),
+  badges: z.record(id, z.string().min(1).max(32)),
 });
 
 export const moduleTextSchema: z.ZodType<ModuleText> = z.object({

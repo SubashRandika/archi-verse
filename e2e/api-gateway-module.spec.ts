@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { gotoReady } from "./support";
 
 /**
  * The API Gateway module end to end: scenarios, languages, resuming and completion, in the
@@ -12,7 +13,7 @@ const timeline = (page: Page) => page.getByRole("list", { name: /Timeline|කා
 const currentStep = (page: Page) => timeline(page).locator("button[aria-current=step]");
 
 async function openModule(page: Page) {
-  await page.goto("/learn/api-gateway");
+  await gotoReady(page, "/learn/api-gateway");
   await expect(page.getByRole("heading", { level: 1, name: "API Gateway" })).toBeVisible();
   await expect(page.locator("[data-scene-stage] canvas")).toBeVisible();
 }
@@ -123,5 +124,80 @@ test.describe("API Gateway module", () => {
         .getByRole("navigation", { name: "Learning navigation" })
         .getByRole("link", { name: /^API Gateway\s?, Completed/ }),
     ).toBeVisible();
+  });
+
+  test("can be used with the keyboard alone", async ({ page }) => {
+    await openModule(page);
+    const main = page.getByRole("main");
+
+    // Arrow keys move through the steps, and each change is announced.
+    await main.focus();
+    for (let i = 0; i < 4; i += 1) await page.keyboard.press("ArrowRight");
+    await expect(currentStep(page)).toHaveAccessibleName("Step 5: Authentication");
+    await expect(page.getByText("Step 5 of 12: Authentication")).toBeAttached();
+
+    // Open a part, then go back: focus follows, and returns to the part's button.
+    const parts = explanation(page).getByRole("region", { name: "Parts in this step" });
+    await parts.getByRole("button", { name: "Identity provider" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      explanation(page).getByRole("heading", { level: 2, name: "Identity provider" }),
+    ).toBeFocused();
+    await explanation(page).getByRole("button", { name: "Back to step 5" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(parts.getByRole("button", { name: "Identity provider" })).toBeFocused();
+
+    // Menus open, move and choose with the keyboard; focus returns to their button.
+    const speed = page.getByRole("button", { name: /^Playback speed/ });
+    await speed.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: /^Playback speed/ })).toContainText("1×");
+    await page.keyboard.press("Escape");
+
+    const scenario = page.getByRole("button", { name: /^Scenario, / });
+    await scenario.focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("menuitemradio", { name: /^401 Unauthorized/ }).focus();
+    await page.keyboard.press("Enter");
+    await expect(currentStep(page)).toHaveAccessibleName("Step 1: An expired token arrives");
+    await expect(page.getByRole("button", { name: /^Scenario, / })).toBeFocused();
+
+    // Space plays or pauses the step.
+    const transport = page.getByRole("button", { name: /^(Play|Pause|Replay step)$/ });
+    const before = await transport.getAttribute("aria-label");
+    await main.focus();
+    await page.keyboard.press(" ");
+    await expect(transport).not.toHaveAttribute("aria-label", before ?? "");
+  });
+
+  test("has no serious accessibility violations in its other views", async ({ page }) => {
+    await openModule(page);
+    await timeline(page).getByRole("button", { name: "Step 5: Authentication" }).click();
+
+    // A part, in Advanced.
+    await explanation(page)
+      .getByRole("region", { name: "Parts in this step" })
+      .getByRole("button", { name: "API gateway" })
+      .click();
+    await explanation(page).getByRole("button", { name: "Advanced", exact: true }).click();
+    await expect(
+      explanation(page).getByRole("heading", { level: 2, name: "API gateway" }),
+    ).toBeVisible();
+    await expectNoSeriousA11yViolations(page);
+
+    // A scenario's last step, in Sinhala, with the message open.
+    await explanation(page).getByRole("button", { name: "Back to step 5" }).click();
+    await page.getByRole("button", { name: /^Scenario, / }).click();
+    await page.getByRole("menuitemradio", { name: /^503, rerouted/ }).click();
+    await timeline(page)
+      .getByRole("button", { name: /^Step 3:/ })
+      .click();
+    await page.getByRole("button", { name: "සිංහල", exact: true }).click();
+    await expect(explanation(page)).toHaveAttribute("lang", "si");
+    await expectNoSeriousA11yViolations(page);
   });
 });

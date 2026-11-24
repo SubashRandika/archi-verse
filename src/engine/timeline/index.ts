@@ -1,5 +1,5 @@
 export {
-  badgeText,
+  badgeOf,
   compileTimeline,
   type CompiledTimeline,
   type CompileOptions,

@@ -41,7 +41,14 @@ export interface SceneComponent {
   readonly stages?: readonly ComponentStage[];
   /** Scenery: no label, not selectable, not listed (e.g. network hops). */
   readonly decorative?: boolean;
+  /**
+   * Where the name sits relative to the shape on screen (default "above"). Use "right" or
+   * "below" when a wire or another label would cross it.
+   */
+  readonly labelPlacement?: LabelPlacement;
 }
+
+export type LabelPlacement = "above" | "right" | "below";
 
 export interface SceneConnection {
   readonly id: string;
@@ -69,7 +76,18 @@ export type StatusTone = "info" | "warning" | "error" | "down";
 export interface ComponentStatus {
   readonly tone: StatusTone;
   /** Short text shown next to the component, e.g. "429" or "57 of 60 left". */
-  readonly badge?: string;
+  readonly badge?: StatusBadge;
+}
+
+/**
+ * A badge by reference: `id` names a text in the module's `badges` table (one per language),
+ * e.g. `{ id: "left", count: 57 }` with the English text "{count} of 60 left". Language-free
+ * data, so the scene can switch language without recompiling its timeline.
+ */
+export interface StatusBadge {
+  readonly id: string;
+  /** Replaces `{count}` in the text. */
+  readonly count?: number;
 }
 
 /**

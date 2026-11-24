@@ -323,6 +323,16 @@ export const si: LocaleText = {
     },
   },
 
+  // Short texts shown in the scene, next to a component's name.
+  badges: {
+    code: "{count}",
+    left: "60න් {count}ක් ඉතුරුයි",
+    waiting: "තත්පර {count}ක් ඉන්නවා",
+    slow: "හෙමින්",
+    timeout: "තත්පර {count}කින් timeout",
+    retry: "තත්පර {count}කින් retry",
+    down: "down",
+  },
   glossary: {
     client: { term: "Client", definition: "Requests යවන program එක: මෙතනදී browser එක." },
     origin: {

@@ -14,6 +14,7 @@ const en = {
   showInspector: "Show explanation",
   hideInspector: "Hide explanation",
   openExplanation: "Open explanation",
+  resizeExplanation: "Resize explanation panel",
   completed: "Completed",
   markCompleted: "Mark this concept as completed",
   markNotStarted: "Mark as not started",
@@ -21,6 +22,7 @@ const en = {
   // Scene
   sceneComponents: "Scene components",
   loadingScene: "Loading the 3D scene…",
+  staticDrawing: (parts: string) => `Drawing of the architecture: ${parts}.`,
   noWebgl:
     "This browser can’t show the 3D view, so this is a static drawing. Steps and explanations still work.",
   webglLost:
@@ -96,12 +98,14 @@ const si: StudioStrings = {
   showInspector: "පැහැදිලි කිරීම පෙන්නන්න",
   hideInspector: "පැහැදිලි කිරීම සඟවන්න",
   openExplanation: "පැහැදිලි කිරීම open කරන්න",
+  resizeExplanation: "පැහැදිලි කිරීමේ panel එකේ ප්‍රමාණය වෙනස් කරන්න",
   completed: "ඉවරයි",
   markCompleted: "මේ concept එක ඉවරයි කියලා සලකුණු කරන්න",
   markNotStarted: "තවම පටන් ගත්තේ නැහැ කියලා සලකුණු කරන්න",
 
   sceneComponents: "Scene එකේ කොටස්",
   loadingScene: "3D scene එක load වෙනවා…",
+  staticDrawing: (parts: string) => `Architecture එකේ චිත්‍රය: ${parts}.`,
   noWebgl:
     "මේ browser එකට 3D view එක පෙන්නන්න බැහැ, ඒ නිසා මේ තියෙන්නේ සරල චිත්‍රයක්. පියවර සහ පැහැදිලි කිරීම් තවමත් වැඩ කරනවා.",
   webglLost:

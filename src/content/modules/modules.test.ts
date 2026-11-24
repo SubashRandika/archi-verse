@@ -113,6 +113,21 @@ describe.each(Object.values(modules))("module $id", (learningModule) => {
     }
   });
 
+  it("has a text in every language for every badge the scene shows", () => {
+    const used = new Set<string>();
+    for (const step of allSteps) {
+      for (const status of Object.values(step.scene.initial?.status ?? {})) {
+        if (status.badge) used.add(status.badge.id);
+      }
+      for (const beat of step.scene.beats) {
+        if (beat.type === "status" && beat.status?.badge) used.add(beat.status.badge.id);
+      }
+    }
+    for (const locale of LOCALES) {
+      expect(Object.keys(text.locales[locale].badges).sort(), locale).toEqual([...used].sort());
+    }
+  });
+
   it("keeps technical terms in English and writes Sinhala text in Sinhala script", () => {
     const sinhala = /[඀-෿]/;
     const { en, si } = text.locales;
@@ -128,8 +143,14 @@ describe.each(Object.values(modules))("module $id", (learningModule) => {
 
   it("delivers titles in every language for the studio", () => {
     const labels = getModuleLabels(learningModule.id)!;
-    expect(labels.en.steps["authentication"]).toBe("Authentication");
-    expect(labels.si.chapters["return-trip"]).toMatch(/[඀-෿]/);
+    const first = learningModule.steps[0]!;
+    for (const locale of LOCALES) {
+      expect(labels[locale].steps[first.id]).toBe(text.locales[locale].steps[first.id]?.title);
+      expect(labels[locale].chapters[first.chapterId]).toBe(
+        text.locales[locale].chapters[first.chapterId],
+      );
+      expect(labels[locale].badges).toEqual(text.locales[locale].badges);
+    }
   });
 });
 

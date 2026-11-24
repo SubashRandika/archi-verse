@@ -20,10 +20,11 @@ function labelsOf(text: LocaleText): ModuleLabels {
     chapters: text.chapters,
     scenarios: text.scenarios,
     steps: Object.fromEntries(Object.entries(text.steps).map(([id, step]) => [id, step.title])),
+    badges: text.badges,
   };
 }
 
-/** Just the titles (chapters, scenarios, steps) in every language, for the studio's dock. */
+/** The studio's titles (chapters, scenarios, steps) and scene badges, in every language. */
 export function getModuleLabels(id: string | undefined): Record<Locale, ModuleLabels> | undefined {
   const text = getModuleText(id);
   if (!text) return undefined;

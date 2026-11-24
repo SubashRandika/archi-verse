@@ -14,30 +14,9 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { IconButton } from "@/components/icon-button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { lazyMenu } from "@/components/lazy-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,14 +33,15 @@ import {
 import { useCurrentConcept } from "@/features/studio/current-concept";
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "./category-icon";
-import {
-  type ExplorerFilter,
-  filterCatalog,
-  isFiltering,
-  NO_FILTER,
-  type StatusFilter,
-} from "./filter";
+import { type ExplorerFilter, filterCatalog, isFiltering, NO_FILTER } from "./filter";
 import { loadConceptSummaries, useConceptSummaries } from "./concept-summaries";
+
+const loadMenus = () => import("./sidebar-menus");
+const FilterMenuPopup = lazyMenu(() => loadMenus().then((menus) => menus.FilterMenu));
+const ProgressMenu = lazyMenu(() => loadMenus().then((menus) => menus.ProgressMenu));
+const ResetProgressDialog = lazy(() =>
+  loadMenus().then((menus) => ({ default: menus.ResetProgressDialog })),
+);
 
 /**
  * Learning navigation: the concept catalog with saved progress, search and filters.
@@ -323,13 +303,6 @@ function SidebarPanel({
   );
 }
 
-const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
-  all: "All concepts",
-  "not-started": "Not started",
-  "in-progress": "In progress",
-  completed: "Completed",
-};
-
 function FilterMenu({
   filter,
   onChange,
@@ -339,58 +312,32 @@ function FilterMenu({
 }) {
   const active = filter.status !== "all" || filter.withVisualizationOnly;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <IconButton
-            label={active ? "Filter concepts (filters active)" : "Filter concepts"}
-            icon={
-              <span className="relative">
-                <ListFilter />
-                {active && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-paper"
-                  />
-                )}
-              </span>
-            }
-            variant="outline"
-            size="icon"
-            className={cn(
-              "size-9 bg-hull-raised text-graphite hover:text-paper",
-              active && "text-paper",
-            )}
-          />
-        }
-      />
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Show</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={filter.status}
-            onValueChange={(status) =>
-              onChange((current) => ({ ...current, status: status as StatusFilter }))
-            }
-          >
-            {(Object.keys(STATUS_FILTER_LABELS) as StatusFilter[]).map((status) => (
-              <DropdownMenuRadioItem key={status} value={status}>
-                {STATUS_FILTER_LABELS[status]}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem
-          checked={filter.withVisualizationOnly}
-          onCheckedChange={(checked) =>
-            onChange((current) => ({ ...current, withVisualizationOnly: checked }))
+    <FilterMenuPopup
+      filter={filter}
+      onChange={onChange}
+      trigger={
+        <IconButton
+          label={active ? "Filter concepts (filters active)" : "Filter concepts"}
+          icon={
+            <span className="relative">
+              <ListFilter />
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-paper"
+                />
+              )}
+            </span>
           }
-        >
-          Only with a visualization
-        </DropdownMenuCheckboxItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          variant="outline"
+          size="icon"
+          className={cn(
+            "size-9 bg-hull-raised text-graphite hover:text-paper",
+            active && "text-paper",
+          )}
+        />
+      }
+    />
   );
 }
 
@@ -561,6 +508,8 @@ function ConceptSummary({ conceptId }: { conceptId: string }) {
 function ProgressFooter({ overall }: { overall: ProgressSummary }) {
   const reset = useProgressStore((state) => state.reset);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // The dialog's code loads the first time it is asked for.
+  const [confirmRequested, setConfirmRequested] = useState(false);
 
   return (
     <div className="shrink-0 border-t border-rule py-2 pr-2 pl-4">
@@ -574,51 +523,35 @@ function ProgressFooter({ overall }: { overall: ProgressSummary }) {
           </div>
           <ProgressBar value={overall.completed} max={overall.total} className="mt-2" />
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <IconButton
-                label="Progress options"
-                icon={<Ellipsis />}
-                tooltipSide="top"
-                className="text-graphite hover:text-paper"
-              />
-            }
-          />
-          <DropdownMenuContent side="top" align="end" className="w-48">
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={overall.completed === 0 && overall.inProgress === 0}
-              onClick={() => setConfirmOpen(true)}
-            >
-              Reset progress…
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ProgressMenu
+          canReset={overall.completed > 0 || overall.inProgress > 0}
+          onReset={() => {
+            setConfirmRequested(true);
+            setConfirmOpen(true);
+          }}
+          trigger={
+            <IconButton
+              label="Progress options"
+              icon={<Ellipsis />}
+              tooltipSide="top"
+              className="text-graphite hover:text-paper"
+            />
+          }
+        />
       </div>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset all progress?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This clears the status of every concept saved in this browser. It can’t be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep progress</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                reset();
-                setConfirmOpen(false);
-              }}
-            >
-              Reset progress
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {confirmRequested && (
+        <Suspense fallback={null}>
+          <ResetProgressDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            onConfirm={() => {
+              reset();
+              setConfirmOpen(false);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
