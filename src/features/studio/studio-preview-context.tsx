@@ -1,18 +1,22 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import {
+  type ExplanationLevel,
+  type PlaybackSpeed,
+  usePreferencesStore,
+} from "@/features/preferences/preferences-store";
 import { previewSteps, type PreviewStepWithChapter } from "./placeholder";
 
 /**
- * PLACEHOLDER (Phase 2). Minimal shared studio state so the dock, inspector and header stay
- * consistent. Phase 4 replaces it with the per-studio Zustand session store (ADR-0004), and
- * the explanation level moves to persisted preferences in Phase 3.
+ * PLACEHOLDER (Phase 2–3). Minimal shared studio state so the dock, inspector and header stay
+ * consistent. Phase 4 replaces the step/playback part with the per-studio Zustand session
+ * store (ADR-0004). Explanation level and speed are persisted preferences (Phase 3).
  */
 
 export type StudioMode = "guided" | "explore";
-export type ExplanationLevel = "beginner" | "advanced";
-export const PLAYBACK_SPEEDS = [0.5, 1, 1.5, 2] as const;
-export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
+export { PLAYBACK_SPEEDS } from "@/features/preferences/preferences-store";
+export type { ExplanationLevel, PlaybackSpeed } from "@/features/preferences/preferences-store";
 
 interface StudioPreviewState {
   steps: readonly PreviewStepWithChapter[];
@@ -37,46 +41,68 @@ const StudioPreviewContext = createContext<StudioPreviewState | null>(null);
 const lastIndex = previewSteps.length - 1;
 const clampStep = (index: number) => Math.min(Math.max(index, 0), lastIndex);
 
+interface SessionState {
+  conceptId: string;
+  stepIndex: number;
+  playing: boolean;
+  mode: StudioMode;
+}
+
 interface StudioPreviewProviderProps {
   children: ReactNode;
+  /** Session state (step, playback, mode) resets when the concept changes. */
+  conceptId?: string;
   /** Zero-based index of the initially selected step. */
   initialStepIndex?: number;
 }
 
 export function StudioPreviewProvider({
   children,
+  conceptId = "preview",
   initialStepIndex = 1,
 }: StudioPreviewProviderProps) {
-  const [stepIndex, setStepIndex] = useState(() => clampStep(initialStepIndex));
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState<PlaybackSpeed>(1);
-  const [mode, setMode] = useState<StudioMode>("guided");
-  const [level, setLevel] = useState<ExplanationLevel>("beginner");
+  const initialSession = (id: string): SessionState => ({
+    conceptId: id,
+    stepIndex: clampStep(initialStepIndex),
+    playing: false,
+    mode: "guided",
+  });
+  const [stored, setSession] = useState<SessionState>(() => initialSession(conceptId));
+  // A different concept starts a fresh session (derived during render, no effect needed).
+  const session = stored.conceptId === conceptId ? stored : initialSession(conceptId);
+
+  const level = usePreferencesStore((state) => state.explanationLevel);
+  const speed = usePreferencesStore((state) => state.playbackSpeed);
+  const setLevel = usePreferencesStore((state) => state.setExplanationLevel);
+  const setSpeed = usePreferencesStore((state) => state.setPlaybackSpeed);
 
   const value = useMemo<StudioPreviewState>(() => {
-    const currentStep = previewSteps[stepIndex] ?? previewSteps[0];
+    const update = (patch: (current: SessionState) => Partial<SessionState>) =>
+      setSession((current) => {
+        const base = current.conceptId === session.conceptId ? current : session;
+        return { ...base, ...patch(base) };
+      });
+    const currentStep = previewSteps[session.stepIndex] ?? previewSteps[0];
     if (!currentStep) throw new Error("Studio preview requires at least one step.");
+
     return {
       steps: previewSteps,
-      stepIndex,
+      stepIndex: session.stepIndex,
       currentStep,
-      playing,
+      playing: session.playing,
       speed,
-      mode,
+      mode: session.mode,
       level,
-      goToStep: (index) => setStepIndex(clampStep(index)),
-      nextStep: () => setStepIndex((index) => clampStep(index + 1)),
-      previousStep: () => setStepIndex((index) => clampStep(index - 1)),
-      restart: () => {
-        setStepIndex(0);
-        setPlaying(false);
-      },
-      togglePlaying: () => setPlaying((isPlaying) => !isPlaying),
+      goToStep: (index) => update(() => ({ stepIndex: clampStep(index) })),
+      nextStep: () => update((current) => ({ stepIndex: clampStep(current.stepIndex + 1) })),
+      previousStep: () => update((current) => ({ stepIndex: clampStep(current.stepIndex - 1) })),
+      restart: () => update(() => ({ stepIndex: 0, playing: false })),
+      togglePlaying: () => update((current) => ({ playing: !current.playing })),
       setSpeed,
-      setMode,
+      setMode: (mode) => update(() => ({ mode })),
       setLevel,
     };
-  }, [stepIndex, playing, speed, mode, level]);
+  }, [session, speed, level, setLevel, setSpeed]);
 
   return <StudioPreviewContext.Provider value={value}>{children}</StudioPreviewContext.Provider>;
 }

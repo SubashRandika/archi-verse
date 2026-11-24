@@ -18,7 +18,7 @@ import {
   Telescope,
   Waypoints,
 } from "lucide-react";
-import type { CategoryIcon as CategoryIconKey } from "@/content/catalog/categories";
+import type { CategoryIcon as CategoryIconKey } from "@/content/catalog";
 
 const ICONS: Record<CategoryIconKey, LucideIcon> = {
   "front-end": LayoutTemplate,

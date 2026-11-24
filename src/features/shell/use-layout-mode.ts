@@ -35,3 +35,17 @@ function subscribe(onChange: () => void): () => void {
 export function useLayoutMode(): LayoutMode {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
+
+const noopSubscribe = () => () => {};
+
+/**
+ * `false` in the static HTML and during hydration, `true` afterwards. It flips in the same
+ * render as `useLayoutMode` switches from its server snapshot to the real layout.
+ */
+export function useIsClient(): boolean {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+}

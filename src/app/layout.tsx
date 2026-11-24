@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from "next/font/google";
+import { PersistedStateSync } from "@/features/progress/persisted-state";
 import "./globals.css";
 
 /*
@@ -47,7 +48,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`dark ${plexSans.variable} ${plexCondensed.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden">{children}</body>
+      <head>
+        <noscript>
+          {/* Without JavaScript the shell never becomes "ready"; show it anyway. */}
+          <style>{`[data-shell]{visibility:visible!important}`}</style>
+        </noscript>
+      </head>
+      <body className="h-full overflow-hidden">
+        <PersistedStateSync />
+        {children}
+      </body>
     </html>
   );
 }

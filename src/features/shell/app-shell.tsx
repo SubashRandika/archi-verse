@@ -1,8 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
-import { type ReactNode, useCallback, useMemo, useState } from "react";
-import { usePanelRef } from "react-resizable-panels";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useGroupRef, usePanelRef } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
@@ -13,8 +13,10 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { usePreferencesStore } from "@/features/preferences/preferences-store";
+import { useHasHydrated } from "@/features/progress/persisted-state";
 import { ShellContext, type ShellState } from "./shell-context";
-import { useLayoutMode } from "./use-layout-mode";
+import { useIsClient, useLayoutMode } from "./use-layout-mode";
 
 /* Panel constraints. Numbers are pixels (react-resizable-panels v4). */
 const SIDEBAR = { default: 288, min: 232, max: 400, rail: 56 } as const;
@@ -34,6 +36,7 @@ interface AppShellProps {
  */
 export function AppShell({ sidebar, inspector, children }: AppShellProps) {
   const layout = useLayoutMode();
+  const isClient = useIsClient();
   const sidebarPanel = usePanelRef();
   const inspectorPanel = usePanelRef();
 
@@ -122,9 +125,18 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
           Skip to learning studio
         </a>
 
-        <div className="flex h-dvh w-full overflow-hidden bg-hull">
+        {/*
+          The static HTML is always the desktop layout. Below 1024px it stays hidden until the
+          client has switched to the right layout (see globals.css), so small screens never
+          flash the desktop layout.
+        */}
+        <div
+          data-shell=""
+          data-ready={isClient ? "true" : "false"}
+          className="flex h-dvh w-full overflow-hidden bg-hull"
+        >
           {layout === "desktop" ? (
-            <ResizablePanelGroup id="shell-desktop" orientation="horizontal">
+            <PersistentPanelGroup id="shell-desktop">
               <ResizablePanel
                 id="sidebar"
                 panelRef={sidebarPanel}
@@ -141,13 +153,13 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
               {studio}
               <ResizableHandle aria-label="Resize inspector" />
               {inspectorPanelElement}
-            </ResizablePanelGroup>
+            </PersistentPanelGroup>
           ) : layout === "tablet" ? (
-            <ResizablePanelGroup id="shell-tablet" orientation="horizontal">
+            <PersistentPanelGroup id="shell-tablet">
               {studio}
               <ResizableHandle aria-label="Resize inspector" />
               {inspectorPanelElement}
-            </ResizablePanelGroup>
+            </PersistentPanelGroup>
           ) : (
             <div className="flex min-w-0 flex-1">{children}</div>
           )}
@@ -197,5 +209,39 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
         )}
       </TooltipProvider>
     </ShellContext.Provider>
+  );
+}
+
+/**
+ * A horizontal panel group whose layout (sizes and collapsed panels) is saved per group id.
+ *
+ * Saved layouts load after hydration, so they are applied with `setLayout` once preferences
+ * have loaded. Changes are only saved after that point — the initial default layout must
+ * never overwrite a saved one.
+ */
+function PersistentPanelGroup({ id, children }: { id: string; children: ReactNode }) {
+  const groupRef = useGroupRef();
+  const preferencesLoaded = useHasHydrated(usePreferencesStore);
+  const savedLayout = usePreferencesStore((state) => state.panelLayouts[id]);
+  const setPanelLayout = usePreferencesStore((state) => state.setPanelLayout);
+  const restored = useRef(false);
+
+  useEffect(() => {
+    if (!preferencesLoaded || restored.current) return;
+    restored.current = true;
+    if (savedLayout) groupRef.current?.setLayout({ ...savedLayout });
+  }, [preferencesLoaded, savedLayout, groupRef]);
+
+  return (
+    <ResizablePanelGroup
+      id={id}
+      orientation="horizontal"
+      groupRef={groupRef}
+      onLayoutChanged={(layout, meta) => {
+        if (restored.current) setPanelLayout(id, meta.requestedLayout ?? layout);
+      }}
+    >
+      {children}
+    </ResizablePanelGroup>
   );
 }

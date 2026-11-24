@@ -22,7 +22,7 @@ async function expectNoHorizontalScroll(page: Page) {
 
 test.describe("application shell — desktop", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/learn/api-gateway");
   });
 
   test("renders navigation, studio, inspector and playback controls", async ({ page }) => {
@@ -91,7 +91,7 @@ test.describe("application shell — mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/learn/api-gateway");
   });
 
   test("fits the viewport without horizontal scrolling", async ({ page }) => {

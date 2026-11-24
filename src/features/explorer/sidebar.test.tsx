@@ -1,25 +1,31 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useProgressStore } from "@/features/progress/progress-store";
 import { renderInStudio } from "@/test/render";
 import { Sidebar } from "./sidebar";
 
-const categoryButton = (name: RegExp) => screen.getByRole("button", { name });
+const nav = () => screen.getByRole("navigation", { name: "Learning navigation" });
+const categoryButton = (name: RegExp) => within(nav()).getByRole("button", { name });
+const search = () => screen.getByRole("searchbox", { name: /search/i });
 
 describe("Sidebar", () => {
-  it("lists all 16 categories with their progress", () => {
+  it("lists all 16 categories with their concept counts", () => {
     renderInStudio(<Sidebar />);
-    const nav = screen.getByRole("navigation", { name: "Learning navigation" });
-    const categoryToggles = within(nav)
+    const toggles = within(nav())
       .getAllByRole("button")
-      .filter((button) => button.hasAttribute("aria-expanded"));
-    expect(categoryToggles).toHaveLength(16);
+      .filter(
+        (button) => button.hasAttribute("aria-expanded") && !button.hasAttribute("aria-haspopup"),
+      );
+    expect(toggles).toHaveLength(16);
     expect(categoryButton(/^Security Architecture/)).toHaveTextContent("0/18");
+    expect(screen.getByText("0 of 291")).toBeInTheDocument();
   });
 
-  it("expands the current category and marks the current concept", () => {
-    renderInStudio(<Sidebar />);
-    expect(categoryButton(/^API Integration/)).toHaveAttribute("aria-expanded", "true");
-    const current = screen.getByText("API Gateway").closest("li");
+  it("expands the current concept's category and links every concept", () => {
+    renderInStudio(<Sidebar />, { conceptSlug: "etag" });
+    expect(categoryButton(/^Caching Architecture/)).toHaveAttribute("aria-expanded", "true");
+    const current = screen.getByRole("link", { name: /^ETag/ });
+    expect(current).toHaveAttribute("href", "/learn/etag");
     expect(current).toHaveAttribute("aria-current", "page");
   });
 
@@ -30,34 +36,81 @@ describe("Sidebar", () => {
 
     await user.click(caching);
     expect(caching).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: /^Stale-While-Revalidate/ })).toBeInTheDocument();
     await user.click(caching);
     expect(caching).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("filters categories and concepts by search text", async () => {
+  it("reflects saved progress in rows, category counts and the total", () => {
+    renderInStudio(<Sidebar />);
+    act(() => {
+      useProgressStore.getState().markCompleted("api-gateway");
+      useProgressStore.getState().markCompleted("graphql");
+    });
+
+    expect(screen.getByRole("link", { name: /^GraphQL, Completed/ })).toBeInTheDocument();
+    expect(categoryButton(/^API Integration/)).toHaveTextContent("2/17");
+    // API Gateway is shared with the backend category, so it counts there too.
+    expect(categoryButton(/^Backend & Distributed/)).toHaveTextContent("1/26");
+    expect(screen.getByText("2 of 291")).toBeInTheDocument();
+  });
+
+  it("searches titles and keywords and shows the number of matches", async () => {
     const user = userEvent.setup();
     renderInStudio(<Sidebar />);
 
-    await user.type(screen.getByRole("searchbox", { name: /search/i }), "idempot");
+    await user.type(search(), "kafka");
 
-    expect(categoryButton(/^API Integration/)).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Idempotency")).toBeInTheDocument();
-    expect(screen.queryByText("GraphQL")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Apache Kafka/ })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("1 concept");
     expect(
       screen.queryByRole("button", { name: /^Security Architecture/ }),
     ).not.toBeInTheDocument();
   });
 
-  it("explains what to do when nothing matches, and clears the search", async () => {
+  it("explains what to do when nothing matches, and clears the filters", async () => {
     const user = userEvent.setup();
     renderInStudio(<Sidebar />);
 
-    await user.type(screen.getByRole("searchbox", { name: /search/i }), "kubernetes operator");
-    expect(screen.getByText(/Nothing matches/)).toBeInTheDocument();
+    await user.type(search(), "quantum blockchain");
+    expect(screen.getByText(/Nothing matches these filters/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Clear search" }));
-    expect(screen.getByRole("searchbox", { name: /search/i })).toHaveValue("");
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(search()).toHaveValue("");
     expect(categoryButton(/^Security Architecture/)).toBeInTheDocument();
+  });
+
+  it("filters by status", async () => {
+    const user = userEvent.setup();
+    renderInStudio(<Sidebar />);
+    act(() => useProgressStore.getState().markCompleted("jwt"));
+
+    await user.click(screen.getByRole("button", { name: "Filter concepts" }));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Completed" }));
+
+    const links = within(nav()).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/learn/jwt"]);
+  });
+
+  it("focuses search when / is pressed", async () => {
+    const user = userEvent.setup();
+    renderInStudio(<Sidebar />);
+    await user.keyboard("/");
+    expect(search()).toHaveFocus();
+  });
+
+  it("resets progress after confirmation", async () => {
+    const user = userEvent.setup();
+    renderInStudio(<Sidebar />);
+    act(() => useProgressStore.getState().markCompleted("jwt"));
+
+    await user.click(screen.getByRole("button", { name: "Progress options" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Reset progress…" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Reset all progress?" });
+    await user.click(within(dialog).getByRole("button", { name: "Reset progress" }));
+
+    expect(useProgressStore.getState().concepts).toEqual({});
+    expect(screen.getByText("0 of 291")).toBeInTheDocument();
   });
 
   it("renders the icon rail when collapsed on desktop", async () => {

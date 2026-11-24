@@ -1,19 +1,20 @@
-import { Sidebar } from "@/features/explorer/sidebar";
-import { InspectorPanel } from "@/features/inspector/inspector-panel";
-import { AppShell } from "@/features/shell/app-shell";
-import { Studio } from "@/features/studio/studio";
-import { StudioPreviewProvider } from "@/features/studio/studio-preview-context";
+import Link from "next/link";
+import { DEFAULT_CONCEPT_ID } from "@/content/catalog";
+import { ResumeLearning } from "@/features/explorer/resume-learning";
 
 /**
- * Phase 2: the application shell with the Learning Studio for the API Gateway concept,
- * using placeholder content. Phase 3 introduces concept routing (`/learn/[conceptSlug]`).
+ * "/" reopens the concept the learner had open last (or API Gateway on a first visit).
+ * The redirect happens on the client because progress lives in this browser's storage.
  */
 export default function HomePage() {
   return (
-    <StudioPreviewProvider>
-      <AppShell sidebar={<Sidebar />} inspector={<InspectorPanel />}>
-        <Studio />
-      </AppShell>
-    </StudioPreviewProvider>
+    <main className="flex h-full items-center justify-center bg-hull">
+      <ResumeLearning />
+      <noscript>
+        <Link href={`/learn/${DEFAULT_CONCEPT_ID}`} className="text-paper underline">
+          Open the learning studio
+        </Link>
+      </noscript>
+    </main>
   );
 }
