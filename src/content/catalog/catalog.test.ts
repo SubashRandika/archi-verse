@@ -7,7 +7,8 @@ import {
   getCategoryConcepts,
   getConcept,
 } from "./index";
-import { categoryDefinitionSchema } from "./schema";
+import { categoryDefinitionSchema, conceptSummariesSchema } from "./schema";
+import { conceptSummaries } from "./summaries";
 
 describe("concept catalog", () => {
   it.each(categoryDefinitions.map((definition) => [definition.id, definition] as const))(
@@ -16,6 +17,11 @@ describe("concept catalog", () => {
       expect(() => categoryDefinitionSchema.parse(definition)).not.toThrow();
     },
   );
+
+  it("has exactly one summary per concept", () => {
+    expect(() => conceptSummariesSchema.parse(conceptSummaries)).not.toThrow();
+    expect(Object.keys(conceptSummaries).sort()).toEqual(concepts.map((c) => c.id).sort());
+  });
 
   it("contains the 16 roadmap categories in order, each with a distinct icon", () => {
     expect(categories).toHaveLength(16);

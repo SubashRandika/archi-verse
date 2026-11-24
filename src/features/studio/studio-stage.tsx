@@ -3,16 +3,18 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { isWebGLAvailable } from "@/engine/scene/webgl";
+import { useStrings } from "@/features/locale/use-strings";
 import { StaticScene } from "./static-scene";
 import { useStudioSessionStore } from "./studio-session";
 
 function SceneLoading() {
+  const t = useStrings();
   return (
     <p
       role="status"
       className="absolute inset-0 grid place-items-center text-caption text-graphite"
     >
-      Loading the 3D scene…
+      {t.loadingScene}
     </p>
   );
 }
@@ -41,6 +43,7 @@ export function StudioStage() {
 
 function StaticStage({ reason }: { reason: "unsupported" | "lost" }) {
   const store = useStudioSessionStore();
+  const t = useStrings();
 
   // Without a timeline there is nothing to play: a step "plays" instantly to its end state.
   useEffect(() => {
@@ -59,9 +62,7 @@ function StaticStage({ reason }: { reason: "unsupported" | "lost" }) {
         role="note"
         className="absolute top-3 left-1/2 z-20 w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-sm border border-rule-strong bg-hull-raised/95 px-3 py-1.5 text-center text-caption text-graphite"
       >
-        {reason === "lost"
-          ? "The 3D view stopped responding, so this is a static drawing. Reload the page to try again."
-          : "This browser can’t show the 3D view, so this is a static drawing. Steps and explanations still work."}
+        {reason === "lost" ? t.webglLost : t.noWebgl}
       </p>
     </>
   );

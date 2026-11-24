@@ -72,9 +72,9 @@
 
 @theme inline {
   /* Fonts (loaded with next/font in app/layout.tsx) */
-  --font-sans: var(--font-plex-sans);
-  --font-heading: var(--font-plex-sans);
-  --font-condensed: var(--font-plex-condensed);
+  --font-sans: var(--font-plex-sans), var(--font-noto-sinhala);
+  --font-heading: var(--font-plex-sans), var(--font-noto-sinhala);
+  --font-condensed: var(--font-plex-condensed), var(--font-noto-sinhala);
   --font-mono: var(--font-plex-mono);
 
   /* Type scale: 12 / 13 / 14 / 15 (reading) / 20 / 28 */
@@ -169,6 +169,14 @@
   input[type="search"]::-webkit-search-cancel-button {
     appearance: none;
   }
+}
+
+/*
+ * Sinhala stacks vowel signs above and below the letters, so reading text in the explanation
+ * panel gets taller lines. Unlayered, so it wins over the type-scale utilities.
+ */
+aside[lang="si"] :is(p, li, dd) {
+  line-height: 1.8;
 }
 
 /*

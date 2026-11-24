@@ -30,16 +30,22 @@ describe("parsePersistedPreferences", () => {
     expect(
       parsePersistedPreferences({
         explanationLevel: "expert",
+        locale: "fr",
         playbackSpeed: 1.5,
         panelLayouts: { "shell-desktop": { sidebar: 500 } },
         lastConceptId: "jwt",
       }),
     ).toEqual({
       explanationLevel: "beginner",
+      locale: "en",
       playbackSpeed: 1.5,
       panelLayouts: {},
       lastConceptId: "jwt",
     });
+  });
+
+  it("keeps a saved language", () => {
+    expect(parsePersistedPreferences({ locale: "si" }).locale).toBe("si");
   });
 
   it("rejects unsupported playback speeds", () => {
@@ -49,6 +55,7 @@ describe("parsePersistedPreferences", () => {
   it("returns defaults for missing data", () => {
     expect(parsePersistedPreferences(undefined)).toMatchObject({
       explanationLevel: "beginner",
+      locale: "en",
       playbackSpeed: 1,
     });
   });

@@ -1,0 +1,167 @@
+import type { Locale } from "@/lib/locale";
+
+/**
+ * Interface strings of the learning studio (header, scene, dock, inspector) in each language.
+ * Module content (titles, explanations) is not here: it arrives as route data. The sidebar
+ * and catalog stay English for now (Phase 5 decision).
+ */
+const en = {
+  // Header
+  openNavigation: "Open navigation",
+  learningMode: "Learning mode",
+  guided: "Guided",
+  explore: "Explore",
+  showInspector: "Show explanation",
+  hideInspector: "Hide explanation",
+  openExplanation: "Open explanation",
+  completed: "Completed",
+  markCompleted: "Mark this concept as completed",
+  markNotStarted: "Mark as not started",
+
+  // Scene
+  sceneComponents: "Scene components",
+  loadingScene: "Loading the 3D scene…",
+  noWebgl:
+    "This browser can’t show the 3D view, so this is a static drawing. Steps and explanations still work.",
+  webglLost:
+    "The 3D view stopped responding, so this is a static drawing. Reload the page to try again.",
+
+  // Dock
+  playbackControls: "Playback controls",
+  restart: "Restart",
+  previousStep: "Previous step",
+  nextStep: "Next step",
+  play: "Play",
+  pause: "Pause",
+  replayStep: "Replay step",
+  timeline: "Timeline",
+  stepLabel: (n: number, title: string) => `Step ${n}: ${title}`,
+  stepOf: (n: number, count: number) => `Step ${n} of ${count}`,
+  scenario: "Scenario",
+  scenarioButton: (title: string) => `Scenario, ${title}`,
+  mainPath: "Main path",
+  mainPathSummary: "The request succeeds",
+  speed: "Speed",
+  speedButton: (speed: string) => `Playback speed, ${speed}`,
+
+  // Inspector
+  inspector: "Explanation",
+  explanationLevel: "Explanation level",
+  beginner: "Beginner",
+  advanced: "Advanced",
+  language: "Language",
+  scenarioTitle: (title: string) => `Scenario: ${title}`,
+  inSimpleWords: "In simple words",
+  likeInRealLife: "Like in real life",
+  howItWorks: "How it works",
+  example: "Example",
+  watch: "Watch in the scene",
+  messageInFlight: "Message in flight",
+  inspectedMessage: "Inspected message",
+  showMessage: "Show the real message",
+  wordsToKnow: "Words to know",
+  partsInStep: "Parts in this step",
+  partsHint: "Click a part here or in the scene to learn what it does.",
+  backToStep: (n: number) => `Back to step ${n}`,
+  whatItDoes: "What it does",
+  talksTo: "Who it talks to",
+  responsibilities: "Responsibilities",
+  inputsOutputs: "Inputs and outputs",
+  receives: "Receives",
+  sends: "Sends",
+  technologies: "Common technologies",
+  examples: "Examples",
+  tradeOffs: "Trade-offs",
+  advantages: "Advantages",
+  limitations: "Limitations",
+  finishTitle: "You’ve followed a request from start to finish",
+  finishText:
+    "Now see what happens when something goes wrong. Each scenario is in the Scenario menu below.",
+  tryScenario: (title: string) => `Try a scenario: ${title}`,
+  doneWithConcept: "Done with this concept?",
+  scenarioEndTitle: "End of this scenario",
+  scenarioEndText:
+    "Try another way things can go wrong, or go back to where this one branched off.",
+  nextScenario: (title: string) => `Next scenario: ${title}`,
+  backToMainPath: "Back to the main path",
+};
+
+export type StudioStrings = typeof en;
+
+const si: StudioStrings = {
+  openNavigation: "Navigation එක open කරන්න",
+  learningMode: "ඉගෙනුම් ක්‍රමය",
+  guided: "මඟපෙන්වීම",
+  explore: "ගවේෂණය",
+  showInspector: "පැහැදිලි කිරීම පෙන්නන්න",
+  hideInspector: "පැහැදිලි කිරීම සඟවන්න",
+  openExplanation: "පැහැදිලි කිරීම open කරන්න",
+  completed: "ඉවරයි",
+  markCompleted: "මේ concept එක ඉවරයි කියලා සලකුණු කරන්න",
+  markNotStarted: "තවම පටන් ගත්තේ නැහැ කියලා සලකුණු කරන්න",
+
+  sceneComponents: "Scene එකේ කොටස්",
+  loadingScene: "3D scene එක load වෙනවා…",
+  noWebgl:
+    "මේ browser එකට 3D view එක පෙන්නන්න බැහැ, ඒ නිසා මේ තියෙන්නේ සරල චිත්‍රයක්. පියවර සහ පැහැදිලි කිරීම් තවමත් වැඩ කරනවා.",
+  webglLost:
+    "3D view එක ප්‍රතිචාර දක්වන එක නැවතුණා, ඒ නිසා මේ තියෙන්නේ සරල චිත්‍රයක්. ආයෙත් උත්සාහ කරන්න page එක reload කරන්න.",
+
+  playbackControls: "Playback පාලනය",
+  restart: "මුල ඉඳන් පටන් ගන්න",
+  previousStep: "කලින් පියවර",
+  nextStep: "ඊළඟ පියවර",
+  play: "පෙන්නන්න",
+  pause: "නවත්වන්න",
+  replayStep: "පියවර ආයෙත් පෙන්නන්න",
+  timeline: "කාලරේඛාව",
+  stepLabel: (n, title) => `පියවර ${n}: ${title}`,
+  stepOf: (n, count) => `පියවර ${n} / ${count}`,
+  scenario: "Scenario",
+  scenarioButton: (title) => `Scenario, ${title}`,
+  mainPath: "ප්‍රධාන මාර්ගය",
+  mainPathSummary: "Request එක සාර්ථක වෙනවා",
+  speed: "වේගය",
+  speedButton: (speed) => `Playback වේගය, ${speed}`,
+
+  inspector: "පැහැදිලි කිරීම",
+  explanationLevel: "පැහැදිලි කිරීමේ මට්ටම",
+  beginner: "ආරම්භක",
+  advanced: "උසස්",
+  language: "භාෂාව",
+  scenarioTitle: (title) => `Scenario: ${title}`,
+  inSimpleWords: "සරලව කිව්වොත්",
+  likeInRealLife: "සැබෑ ජීවිතයෙන් උදාහරණයක්",
+  howItWorks: "මෙය වැඩ කරන හැටි",
+  example: "උදාහරණය",
+  watch: "Scene එකේ බලන්න",
+  messageInFlight: "ගමන් කරන message එක",
+  inspectedMessage: "පරීක්ෂා කරන message එක",
+  showMessage: "සැබෑ message එක පෙන්නන්න",
+  wordsToKnow: "දැනගන්න ඕන වචන",
+  partsInStep: "මේ පියවරේ කොටස්",
+  partsHint: "කොටසක් කරන දේ දැනගන්න, මෙතන හෝ scene එකේ ඒක click කරන්න.",
+  backToStep: (n) => `${n} වෙනි පියවරට ආපහු`,
+  whatItDoes: "එය කරන දේ",
+  talksTo: "එය කතා කරන්නේ කාත් එක්කද",
+  responsibilities: "වගකීම්",
+  inputsOutputs: "Inputs සහ outputs",
+  receives: "ලබාගන්නවා",
+  sends: "යවනවා",
+  technologies: "බහුලව පාවිච්චි වෙන technologies",
+  examples: "උදාහරණ",
+  tradeOffs: "Trade-offs",
+  advantages: "වාසි",
+  limitations: "සීමාවන්",
+  finishTitle: "ඔබ request එකක් මුල ඉඳන් අගට අනුගමනය කළා",
+  finishText:
+    "දැන් දේවල් වැරදුණොත් මොකද වෙන්නේ කියලා බලන්න. හැම scenario එකක්ම පහළ Scenario menu එකේ තියෙනවා.",
+  tryScenario: (title) => `Scenario එකක් බලන්න: ${title}`,
+  doneWithConcept: "මේ concept එක ඉවරද?",
+  scenarioEndTitle: "මේ scenario එක ඉවරයි",
+  scenarioEndText: "දේවල් වැරදෙන තවත් විදිහක් බලන්න, නැත්නම් මේ scenario එක පටන් ගත්ත තැනට ආපහු යන්න.",
+  nextScenario: (title) => `ඊළඟ scenario එක: ${title}`,
+  backToMainPath: "ප්‍රධාන මාර්ගයට ආපහු",
+};
+
+export const STUDIO_STRINGS: Readonly<Record<Locale, StudioStrings>> = { en, si };

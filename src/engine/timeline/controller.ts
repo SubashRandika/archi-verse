@@ -9,6 +9,11 @@ export interface TimelineEvents {
 }
 
 const EPSILON = 1e-6;
+/**
+ * Playback stops this far before a step's end: the next step starts at exactly that time with
+ * its clean-slate state (statuses, badges), which must not show while this step is on screen.
+ */
+const END_GAP = 1e-3;
 
 /**
  * Plays a compiled timeline one step at a time.
@@ -47,7 +52,8 @@ export class TimelineController {
   get stepProgress() {
     const span = this.compiled.steps[this.index];
     if (!span) return 0;
-    const fraction = (this.compiled.timeline.time() - span.start) / (span.end - span.start);
+    const fraction =
+      (this.compiled.timeline.time() - span.start) / (span.end - END_GAP - span.start);
     return Math.min(Math.max(fraction, 0), 1);
   }
 
@@ -68,11 +74,12 @@ export class TimelineController {
     const span = this.compiled.steps[this.index];
     if (!span) return false;
     const from = this.compiled.timeline.time();
-    if (from >= span.end - EPSILON) return false;
+    const stopAt = span.end - END_GAP;
+    if (from >= stopAt - EPSILON) return false;
 
     this.stop();
     const stepIndex = this.index;
-    this.player = this.compiled.timeline.tweenFromTo(from, span.end, {
+    this.player = this.compiled.timeline.tweenFromTo(from, stopAt, {
       ease: "none",
       onComplete: () => {
         this.player = undefined;

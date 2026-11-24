@@ -16,7 +16,10 @@ import {
   type PlaybackSpeed,
   usePreferencesStore,
 } from "@/features/preferences/preferences-store";
-import type { LearningModule, ModuleScenario, ModuleStep } from "@/content/modules";
+import type { LearningModule, ModuleLabels, ModuleScenario, ModuleStep } from "@/content/modules";
+import type { StudioStrings } from "@/features/locale/strings";
+import { useLocale, useStrings } from "@/features/locale/use-strings";
+import { useModuleLabels } from "@/features/studio/module-labels";
 import { MAIN_TRACK } from "@/features/studio/session-store";
 import {
   useCurrentStep,
@@ -46,7 +49,7 @@ export function PlaybackDock() {
   const learningModule = useStudioModule();
   const {
     step: currentStep,
-    chapter: currentChapter,
+    chapterId: currentChapterId,
     scenario,
     index: stepIndex,
     count,
@@ -62,26 +65,31 @@ export function PlaybackDock() {
   const goToStep = useStudioSession((session) => session.goToStep);
   const speed = usePreferencesStore((state) => state.playbackSpeed);
   const setSpeed = usePreferencesStore((state) => state.setPlaybackSpeed);
+  const t = useStrings();
+  const locale = useLocale();
+  const labels = useModuleLabels();
+  const titleOf = (step: ModuleStep) => labels.steps[step.id] ?? step.id;
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === count - 1;
-  const playLabel = playing ? "Pause" : stepComplete && isLast ? "Replay step" : "Play";
+  const playLabel = playing ? t.pause : stepComplete && isLast ? t.replayStep : t.play;
 
   return (
     <section
-      aria-label="Playback controls"
+      aria-label={t.playbackControls}
+      lang={locale}
       className="absolute inset-x-3 bottom-3 z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] rounded-md border border-rule-strong bg-hull-raised/95 shadow-[0_12px_32px_-16px_rgb(0_0_0/0.7)] backdrop-blur-sm @3xl:grid-cols-[auto_minmax(0,1fr)_minmax(8rem,11rem)_auto]"
     >
       {/* Transport */}
       <Cell className="order-2 gap-0.5 px-2 py-2 @3xl:order-1">
         <IconButton
-          label="Restart"
+          label={t.restart}
           icon={<RotateCcw />}
           tooltipSide="top"
           className="text-graphite hover:text-paper"
           onClick={restart}
         />
         <IconButton
-          label="Previous step"
+          label={t.previousStep}
           icon={<SkipBack />}
           tooltipSide="top"
           className="text-graphite hover:text-paper"
@@ -98,7 +106,7 @@ export function PlaybackDock() {
           onClick={togglePlaying}
         />
         <IconButton
-          label="Next step"
+          label={t.nextStep}
           icon={<SkipForward />}
           tooltipSide="top"
           className="text-graphite hover:text-paper"
@@ -109,9 +117,9 @@ export function PlaybackDock() {
 
       {/* Timeline */}
       <Cell className="order-1 col-span-3 border-b px-3 pt-2 pb-2.5 @3xl:order-2 @3xl:col-span-1 @3xl:border-b-0 @3xl:border-l">
-        <ol aria-label="Timeline" className="flex w-full gap-2">
-          {timelineChapters(learningModule, scenario, trackSteps).map((chapter) => {
-            const chapterIsCurrent = chapter.id === currentChapter.id;
+        <ol aria-label={t.timeline} className="flex w-full gap-2">
+          {timelineChapters(learningModule, labels, scenario, trackSteps).map((chapter) => {
+            const chapterIsCurrent = chapter.id === currentChapterId;
             const chapterSteps = chapter.steps;
             return (
               <li
@@ -137,7 +145,7 @@ export function PlaybackDock() {
                       <li key={step.id} className="flex-1">
                         <button
                           type="button"
-                          aria-label={`Step ${index + 1}: ${step.title}`}
+                          aria-label={t.stepLabel(index + 1, titleOf(step))}
                           aria-current={state === "current" ? "step" : undefined}
                           onClick={() => goToStep(index)}
                           className="group flex h-6 w-full min-w-6 items-center rounded-sm"
@@ -168,16 +176,16 @@ export function PlaybackDock() {
       <Cell className="order-3 flex-col items-stretch justify-center gap-0.5 border-l px-3 py-2">
         <span className="flex items-baseline justify-between gap-2">
           <span className="truncate font-condensed text-label text-graphite">
-            {currentChapter.title}
+            {labels.chapters[currentChapterId] ?? labels.scenarios[currentChapterId]?.title}
           </span>
           <span
             aria-hidden="true"
             className="font-condensed text-label text-graphite tabular-nums"
           >{`${stepIndex + 1}/${count}`}</span>
-          <span className="sr-only">{`Step ${stepIndex + 1} of ${count}`}</span>
+          <span className="sr-only">{t.stepOf(stepIndex + 1, count)}</span>
         </span>
         <span className="truncate text-caption font-medium text-paper" aria-live="polite">
-          {currentStep.title}
+          {titleOf(currentStep)}
         </span>
       </Cell>
 
@@ -185,10 +193,12 @@ export function PlaybackDock() {
       <Cell className="order-4 items-stretch gap-1 border-l px-2 py-2">
         <div className="flex flex-col justify-center gap-0.5">
           <span className="px-1">
-            <CellLabel>Scenario</CellLabel>
+            <CellLabel>{t.scenario}</CellLabel>
           </span>
           <ScenarioMenu
             learningModule={learningModule}
+            labels={labels}
+            strings={t}
             current={scenario?.id ?? null}
             onChange={(id) => {
               if (id) switchTrack(id);
@@ -203,9 +213,9 @@ export function PlaybackDock() {
         </div>
         <div className="flex flex-col justify-center gap-0.5">
           <span className="px-1">
-            <CellLabel>Speed</CellLabel>
+            <CellLabel>{t.speed}</CellLabel>
           </span>
-          <SpeedMenu speed={speed} onChange={setSpeed} />
+          <SpeedMenu speed={speed} onChange={setSpeed} label={t.speedButton(formatSpeed(speed))} />
         </div>
       </Cell>
     </section>
@@ -221,12 +231,16 @@ interface TimelineChapter {
 /** Chapters of the current track: the module's chapters, or the scenario as one chapter. */
 function timelineChapters(
   learningModule: LearningModule,
+  labels: ModuleLabels,
   scenario: ModuleScenario | undefined,
   steps: readonly ModuleStep[],
 ): TimelineChapter[] {
-  if (scenario) return [{ id: scenario.id, title: scenario.title, steps }];
+  if (scenario) {
+    return [{ id: scenario.id, title: labels.scenarios[scenario.id]?.title ?? "", steps }];
+  }
   return learningModule.chapters.map((chapter) => ({
-    ...chapter,
+    id: chapter.id,
+    title: labels.chapters[chapter.id] ?? "",
     steps: learningModule.steps.filter((step) => step.chapterId === chapter.id),
   }));
 }
@@ -236,15 +250,18 @@ const MAIN_PATH_VALUE = "main-path";
 /** Main path or one of the module's failure scenarios. */
 function ScenarioMenu({
   learningModule,
+  labels,
+  strings: t,
   current,
   onChange,
 }: {
   learningModule: LearningModule;
+  labels: ModuleLabels;
+  strings: StudioStrings;
   current: string | null;
   onChange: (scenarioId: string | null) => void;
 }) {
-  const currentTitle =
-    learningModule.scenarios.find((scenario) => scenario.id === current)?.title ?? "Main path";
+  const currentTitle = (current && labels.scenarios[current]?.title) || t.mainPath;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -252,7 +269,7 @@ function ScenarioMenu({
           <Button
             variant="ghost"
             size="xs"
-            aria-label={`Scenario, ${currentTitle}`}
+            aria-label={t.scenarioButton(currentTitle)}
             className="h-6 max-w-36 justify-start px-1 text-caption font-medium text-paper"
           />
         }
@@ -266,15 +283,17 @@ function ScenarioMenu({
         >
           <DropdownMenuRadioItem value={MAIN_PATH_VALUE} closeOnClick>
             <span className="flex flex-col">
-              <span>Main path</span>
-              <span className="text-label text-graphite">The request succeeds</span>
+              <span>{t.mainPath}</span>
+              <span className="text-label text-graphite">{t.mainPathSummary}</span>
             </span>
           </DropdownMenuRadioItem>
           {learningModule.scenarios.map((scenario) => (
             <DropdownMenuRadioItem key={scenario.id} value={scenario.id} closeOnClick>
               <span className="flex flex-col">
-                <span>{scenario.title}</span>
-                <span className="text-label text-graphite">{scenario.summary}</span>
+                <span>{labels.scenarios[scenario.id]?.title}</span>
+                <span className="text-label text-graphite">
+                  {labels.scenarios[scenario.id]?.summary}
+                </span>
               </span>
             </DropdownMenuRadioItem>
           ))}
@@ -314,9 +333,11 @@ function CurrentStepTrack() {
 function SpeedMenu({
   speed,
   onChange,
+  label,
 }: {
   speed: PlaybackSpeed;
   onChange: (speed: PlaybackSpeed) => void;
+  label: string;
 }) {
   return (
     <DropdownMenu>
@@ -325,7 +346,7 @@ function SpeedMenu({
           <Button
             variant="ghost"
             size="xs"
-            aria-label={`Playback speed, ${formatSpeed(speed)}`}
+            aria-label={label}
             className="h-6 px-1 text-caption font-medium text-paper tabular-nums"
           />
         }

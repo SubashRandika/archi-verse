@@ -50,7 +50,31 @@
   imperatively updating three.js objects is the intended pattern there. It stays on everywhere
   else.
 - **Accessibility:** every scene interaction must also be possible without the canvas (scene
-  outline, inspector component list, dock, keyboard shortcuts).
+  outline, the panel's "Parts in this step", dock, keyboard shortcuts).
+- **Overlapping beats.** Beats run one after another. A packet's `next` (seconds until the next
+  beat) lets later beats start while it travels, e.g. a burst; the step lasts until the last
+  packet arrives.
+- **Steps end before the boundary.** Every step starts from a clean slate set at its start
+  time, so playback stops 1 ms before the next step's start (`TimelineController`).
+
+## Writing module text
+
+- **Structure and text are separate.** Ids, layout and beats go in `<id>/structure.ts`; every
+  word a learner reads goes in `<id>/text/`. Never put prose in the structure: it would ship as
+  JavaScript.
+- **Every step has both levels in every language.** Beginner: "In simple words" written for a
+  five-year-old (short sentences, no unexplained jargon) and a "Like in real life" example.
+  Advanced: the technical detail and a worked example (numbers, a real header, a query plan).
+  Plus one "Watch in the scene" line that points at something visible.
+- **Sinhala:** friendly spoken style ("කරනවා"); technical terms stay in English, in Latin script
+  ("request එක", "token එක"). Glossary terms are English in every language; definitions are
+  translated.
+- Language-free references (a step's terms and message, message code, example code) live once
+  in `text/shared.ts`.
+- `modules.test.ts` fails when a language is missing a step, part, term or caption. After
+  changing text, regenerate the review copy in `docs/modules/<id>.text.md`.
+- Studio interface strings go in `features/locale/strings.ts` (both languages, same keys,
+  enforced by the type).
 
 ## Formatting & linting
 

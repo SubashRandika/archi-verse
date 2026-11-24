@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InspectorPanel } from "@/features/inspector/inspector-panel";
 import { PROGRESS_STORAGE_KEY, useProgressStore } from "@/features/progress/progress-store";
-import { apiGatewayText } from "@/test/module-text";
+import { apiGatewayLabels, apiGatewayText } from "@/test/module-text";
 import { renderInStudio } from "@/test/render";
 import { Studio } from "./studio";
 
@@ -12,7 +12,7 @@ const currentStep = () =>
 function renderStudio(options?: Parameters<typeof renderInStudio>[1]) {
   return renderInStudio(
     <>
-      <Studio />
+      <Studio labels={apiGatewayLabels} />
       <InspectorPanel text={apiGatewayText} />
     </>,
     options,
@@ -62,9 +62,9 @@ describe("Studio (without WebGL)", () => {
       "aria-pressed",
       "true",
     );
-    // Selecting opens the component's details.
-    expect(screen.getByRole("tab", { name: "Component" })).toHaveAttribute("aria-selected", "true");
+    // Selecting opens the part's details in the explanation panel.
     expect(screen.getByRole("heading", { level: 2, name: "API Gateway" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back to step 1" })).toBeInTheDocument();
 
     // Escape clears the selection (focus back on the studio, not on a widget).
     screen.getByRole("main").focus();

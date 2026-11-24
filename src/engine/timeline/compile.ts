@@ -174,6 +174,7 @@ export function compileTimeline(
       at(channel, { status: initial?.tone ?? "none", badge: badge(initial?.badge) }, start);
     }
     time += STEP_LEAD_IN;
+    let last = time;
 
     step.scene.beats.forEach((beat, beatIndex) => {
       switch (beat.type) {
@@ -193,7 +194,9 @@ export function compileTimeline(
           at(packet, { opacity: 1, progress: 0 }, time);
           if (!beat.stay) timeline.to(packet, { progress: 1, duration, ease: travelEase }, time);
           at(packet, { opacity: 0 }, time + duration);
-          time += duration;
+          // Overlapping packets: the step still lasts until the last one arrives.
+          last = Math.max(last, time + duration);
+          time += beat.next ?? duration;
           break;
         }
         case "process": {
@@ -239,7 +242,7 @@ export function compileTimeline(
       }
     });
 
-    time += STEP_HOLD;
+    time = Math.max(time, last) + STEP_HOLD;
     spans.push({ start, end: time });
   });
 

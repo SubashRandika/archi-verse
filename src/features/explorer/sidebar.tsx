@@ -61,6 +61,7 @@ import {
   NO_FILTER,
   type StatusFilter,
 } from "./filter";
+import { loadConceptSummaries, useConceptSummaries } from "./concept-summaries";
 
 /**
  * Learning navigation: the concept catalog with saved progress, search and filters.
@@ -199,11 +200,16 @@ function SidebarPanel({
   useEffect(() => {
     if (!focusSearch) return;
     searchRef.current?.focus();
+    void loadConceptSummaries();
     onSearchFocused();
   }, [focusSearch, onSearchFocused]);
 
   const filtering = isFiltering(filter);
-  const matches = useMemo(() => filterCatalog(filter, records), [filter, records]);
+  const summaries = useConceptSummaries();
+  const matches = useMemo(
+    () => filterCatalog(filter, records, summaries),
+    [filter, records, summaries],
+  );
   const matchedConceptCount = useMemo(
     () => new Set(matches.flatMap((match) => match.concepts.map((concept) => concept.id))).size,
     [matches],
@@ -242,6 +248,8 @@ function SidebarPanel({
             onChange={(event) =>
               setFilter((current) => ({ ...current, query: event.target.value }))
             }
+            // Searching also matches summaries: start loading them as soon as search is used.
+            onFocus={() => void loadConceptSummaries()}
             onKeyDown={(event) => {
               if (event.key === "Escape" && filter.query) {
                 event.stopPropagation();
@@ -527,7 +535,7 @@ function ConceptRow({
         </HoverCardTrigger>
         <HoverCardContent side="right" align="start" sideOffset={8} className="w-72 p-3">
           <p className="text-caption font-medium text-paper">{concept.title}</p>
-          <p className="mt-1 text-caption text-paper/80">{concept.summary}</p>
+          <ConceptSummary conceptId={concept.id} />
           <p className="mt-2 text-label text-graphite">
             {STATUS_LABEL[status]}
             {available ? ", interactive visualization" : ", visualization planned"}
@@ -536,6 +544,18 @@ function ConceptRow({
       </HoverCard>
     </li>
   );
+}
+
+/** A concept's summary in its preview card, loaded with the first preview opened. */
+function ConceptSummary({ conceptId }: { conceptId: string }) {
+  const summaries = useConceptSummaries();
+  useEffect(() => {
+    void loadConceptSummaries();
+  }, []);
+  if (!summaries) {
+    return <span aria-hidden="true" className="mt-2 block h-8 rounded-sm bg-hull-hover/70" />;
+  }
+  return <p className="mt-1 text-caption text-paper/80">{summaries[conceptId]}</p>;
 }
 
 function ProgressFooter({ overall }: { overall: ProgressSummary }) {

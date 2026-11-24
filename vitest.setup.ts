@@ -72,6 +72,7 @@ afterEach(async () => {
   useProgressStore.setState({ concepts: {} });
   usePreferencesStore.setState({
     explanationLevel: "beginner",
+    locale: "en",
     playbackSpeed: 1,
     panelLayouts: {},
     lastConceptId: undefined,

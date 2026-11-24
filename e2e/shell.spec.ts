@@ -28,7 +28,7 @@ test.describe("application shell — desktop", () => {
   test("renders navigation, studio, inspector and playback controls", async ({ page }) => {
     await expect(page.getByRole("navigation", { name: "Learning navigation" })).toBeVisible();
     await expect(page.getByRole("main")).toBeVisible();
-    await expect(page.getByRole("complementary", { name: "Learning inspector" })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Explanation" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Playback controls" })).toBeVisible();
     await expectNoHorizontalScroll(page);
   });
@@ -44,11 +44,11 @@ test.describe("application shell — desktop", () => {
   });
 
   test("hides and shows the inspector", async ({ page }) => {
-    await page.getByRole("button", { name: "Hide inspector" }).click();
-    await expect(page.getByRole("complementary", { name: "Learning inspector" })).toBeHidden();
+    await page.getByRole("button", { name: "Hide explanation" }).click();
+    await expect(page.getByRole("complementary", { name: "Explanation" })).toBeHidden();
 
-    await page.getByRole("button", { name: "Show inspector" }).click();
-    await expect(page.getByRole("complementary", { name: "Learning inspector" })).toBeVisible();
+    await page.getByRole("button", { name: "Show explanation" }).click();
+    await expect(page.getByRole("complementary", { name: "Explanation" })).toBeVisible();
   });
 
   test("resizes the navigation with the keyboard", async ({ page }) => {
@@ -63,13 +63,13 @@ test.describe("application shell — desktop", () => {
   });
 
   test("keeps the explanation level and step in sync with playback", async ({ page }) => {
-    const inspector = page.getByRole("complementary", { name: "Learning inspector" });
+    const inspector = page.getByRole("complementary", { name: "Explanation" });
     await page.getByRole("button", { name: "Advanced", exact: true }).click();
-    await expect(inspector.getByText(/pseudo-headers/)).toBeVisible();
+    await expect(inspector.getByText(/not a CORS “simple request”/)).toBeVisible();
 
     await page.getByRole("button", { name: "Next step" }).click();
     await expect(
-      inspector.getByRole("heading", { level: 2, name: "The gateway checks and routes it" }),
+      inspector.getByRole("heading", { level: 2, name: "Anatomy of an HTTP request" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Advanced", exact: true })).toHaveAttribute(
       "aria-pressed",
@@ -112,9 +112,9 @@ test.describe("application shell — mobile", () => {
 
   test("opens the explanation in a bottom sheet", async ({ page }) => {
     await page.getByRole("button", { name: "Open explanation" }).click();
-    const sheet = page.getByRole("dialog", { name: "Learning inspector" });
+    const sheet = page.getByRole("dialog", { name: "Explanation" });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole("tab", { name: "Step" })).toBeInViewport();
+    await expect(sheet.getByRole("button", { name: "English", exact: true })).toBeInViewport();
     await expect(sheet.getByRole("button", { name: "Advanced", exact: true })).toBeInViewport();
 
     await sheet.getByRole("button", { name: "Close explanation" }).click();
@@ -129,7 +129,7 @@ test.describe("application shell — mobile", () => {
 
   test("has no serious accessibility violations with the explanation open", async ({ page }) => {
     await page.getByRole("button", { name: "Open explanation" }).click();
-    await expect(page.getByRole("dialog", { name: "Learning inspector" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Explanation" })).toBeVisible();
     await expectNoSeriousA11yViolations(page);
   });
 });

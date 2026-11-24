@@ -180,6 +180,35 @@ describe("compileTimeline: states, stages and signals", () => {
   });
 });
 
+describe("overlapping packets", () => {
+  it("starts the next beat early and lasts until the last packet arrives", () => {
+    const compiled = compileTimeline(layout, [
+      {
+        scene: {
+          focus: ["a"],
+          beats: [
+            { type: "packet", connection: "a-b", flow: "request", duration: 1, next: 0.25 },
+            { type: "packet", connection: "a-b", flow: "request", duration: 1, next: 0 },
+            { type: "status", component: "b", status: { tone: "info", badge: "x" } },
+          ],
+        },
+      },
+    ]);
+    const [first, second] = compiled.channels.packets;
+    const span = compiled.steps[0]!;
+    expect(span.end - span.start).toBeCloseTo(STEP_LEAD_IN + 1.25 + STEP_HOLD);
+
+    // Halfway through the first packet's trip, the second is already travelling.
+    compiled.timeline.seek(span.start + STEP_LEAD_IN + 0.5, false);
+    expect(first?.opacity).toBe(1);
+    expect(second?.opacity).toBe(1);
+    expect(second!.progress).toBeGreaterThan(0);
+    expect(second!.progress).toBeLessThan(first!.progress);
+    // The status beat ran when the second packet was launched.
+    expect(compiled.channels.components.b?.status).toBe("info");
+  });
+});
+
 describe("TimelineController", () => {
   it("seeks to the start of a step, clamped to the available steps", () => {
     const compiled = compile();
@@ -213,6 +242,23 @@ describe("TimelineController", () => {
     expect(compiled.channels.packets[0]?.opacity).toBe(0);
     // A finished step does not play again until the caller seeks.
     expect(controller.play()).toBe(false);
+    controller.dispose();
+  });
+
+  it("stops before the next step's starting state shows", async () => {
+    const compiled = compileTimeline(layout, [
+      steps[0]!,
+      { scene: { ...steps[1]!.scene, initial: { status: { b: { tone: "info", badge: "58" } } } } },
+    ]);
+    const onStepEnd = vi.fn();
+    const controller = new TimelineController(compiled, { onStepEnd });
+    controller.setSpeed(40);
+    controller.play();
+    await vi.waitFor(() => expect(onStepEnd).toHaveBeenCalledWith(0), { timeout: 2000 });
+
+    expect(compiled.channels.components.b?.status).toBe("none");
+    controller.seek(1);
+    expect(compiled.channels.components.b?.status).toBe("info");
     controller.dispose();
   });
 

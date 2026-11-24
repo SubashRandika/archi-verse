@@ -67,14 +67,12 @@ test.describe("3D studio", () => {
       timeout: 10_000,
     });
     await expect(page.getByTestId("step-progress")).toHaveAttribute("style", /scaleX\(1\)/);
-    await expect(currentStep(page)).toHaveAccessibleName("Step 1: The request leaves the browser");
+    await expect(currentStep(page)).toHaveAccessibleName("Step 1: Meet the client");
     await expectIdle(page);
 
     // Play again: on to the next step.
     await page.getByRole("button", { name: "Play", exact: true }).click();
-    await expect(currentStep(page)).toHaveAccessibleName(
-      "Step 2: The gateway checks and routes it",
-    );
+    await expect(currentStep(page)).toHaveAccessibleName("Step 2: Anatomy of an HTTP request");
   });
 
   test("pauses mid-step and keeps its place", async ({ page }) => {
@@ -94,32 +92,27 @@ test.describe("3D studio", () => {
     await page.getByRole("heading", { level: 1, name: "API Gateway" }).click();
 
     await page.keyboard.press("ArrowRight");
-    await expect(currentStep(page)).toHaveAccessibleName(
-      "Step 2: The gateway checks and routes it",
-    );
+    await expect(currentStep(page)).toHaveAccessibleName("Step 2: Anatomy of an HTTP request");
     await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
 
     await page.keyboard.press(" ");
     await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
 
     await page.keyboard.press("r");
-    await expect(currentStep(page)).toHaveAccessibleName("Step 1: The request leaves the browser");
+    await expect(currentStep(page)).toHaveAccessibleName("Step 1: Meet the client");
   });
 
   test("selects a component by clicking it in the scene", async ({ page }) => {
     await openStudio(page);
-    const inspector = page.getByRole("complementary", { name: "Learning inspector" });
+    const inspector = page.getByRole("complementary", { name: "Explanation" });
 
-    // The label sits above the top back corner of the gateway's bounding box; its plinth is
-    // about 1.6 world units further down on screen (~110 px at this framing).
+    // The label sits above the top back corner of the gateway; with the whole system in frame
+    // (step 1), its body spans about 20 to 95 px below the label. Click the middle.
     const label = await bottomCentreOf(stage(page).getByText("API gateway", { exact: true }));
-    await page.mouse.click(label.x + 8, label.y + 110);
+    await page.mouse.click(label.x, label.y + 55);
 
-    await expect(inspector.getByRole("tab", { name: "Component" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
     await expect(inspector.getByRole("heading", { level: 2, name: "API Gateway" })).toBeVisible();
+    await expect(inspector.getByRole("button", { name: "Back to step 1" })).toBeVisible();
     const outline = page.getByRole("navigation", { name: "Scene components" });
     await expect(outline.getByRole("button", { name: /API gateway/ })).toHaveAttribute(
       "aria-pressed",
@@ -138,7 +131,7 @@ test.describe("3D studio", () => {
   test("offers keyboard access to scene components", async ({ page }) => {
     await openStudio(page);
     const outline = page.getByRole("navigation", { name: "Scene components" });
-    const button = outline.getByRole("button", { name: /Orders service/ });
+    const button = outline.getByRole("button", { name: /Orders service #1/ });
 
     await button.focus();
     await expect(outline).toBeVisible();
@@ -146,7 +139,7 @@ test.describe("3D studio", () => {
 
     await expect(button).toHaveAttribute("aria-pressed", "true");
     await expect(
-      page.getByRole("complementary", { name: "Learning inspector" }).getByRole("heading", {
+      page.getByRole("complementary", { name: "Explanation" }).getByRole("heading", {
         level: 2,
         name: "Orders service",
       }),

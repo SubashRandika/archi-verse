@@ -3,9 +3,10 @@
 A personal learning platform for software architecture and system design, built around
 interactive, guided **3D isometric** visualizations.
 
-> Status: **Phase 4 — 3D visualization foundation.** All 291 concepts are browsable. API Gateway
-> has an interactive isometric 3D scene with three demonstration steps; its full 12-step module
-> follows in Phase 5. See [`docs/phase-0-plan.md`](docs/phase-0-plan.md) for the approved roadmap.
+> Status: **Phase 5 — first complete learning module.** All 291 concepts are browsable. API
+> Gateway is a complete interactive module: 12 guided steps, 4 failure scenarios, beginner and
+> advanced explanations, in English and Sinhala. See [`docs/phase-0-plan.md`](docs/phase-0-plan.md)
+> for the approved roadmap.
 
 ## Requirements
 
@@ -43,3 +44,5 @@ Append `?perf` to a module URL (e.g. `/learn/api-gateway?perf`) to show frame ra
 - [Conventions](docs/CONVENTIONS.md) — code, testing, dependency and git conventions
 - [Architecture Decision Records](docs/adr/README.md)
 - [Phase 0 plan](docs/phase-0-plan.md) — approved scope and data model
+- [API Gateway module](docs/modules/api-gateway.md) — objectives and scene notes; its text in
+  both languages is in [api-gateway.text.md](docs/modules/api-gateway.text.md)

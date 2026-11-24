@@ -151,13 +151,13 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
               </ResizablePanel>
               <ResizableHandle aria-label="Resize navigation" />
               {studio}
-              <ResizableHandle aria-label="Resize inspector" />
+              <ResizableHandle aria-label="Resize explanation panel" />
               {inspectorPanelElement}
             </PersistentPanelGroup>
           ) : layout === "tablet" ? (
             <PersistentPanelGroup id="shell-tablet">
               {studio}
-              <ResizableHandle aria-label="Resize inspector" />
+              <ResizableHandle aria-label="Resize explanation panel" />
               {inspectorPanelElement}
             </PersistentPanelGroup>
           ) : (
@@ -199,7 +199,7 @@ export function AppShell({ sidebar, inspector, children }: AppShellProps) {
                   <X />
                 </SheetClose>
               </div>
-              <SheetTitle className="sr-only">Learning inspector</SheetTitle>
+              <SheetTitle className="sr-only">Explanation</SheetTitle>
               <SheetDescription className="sr-only">
                 Explanation for the current step and details of the selected component.
               </SheetDescription>

@@ -6,6 +6,7 @@ import {
 } from "@/content/catalog";
 import type { ProgressRecords } from "@/features/progress/progress-store";
 import { type ConceptStatus, getConceptStatus } from "@/features/progress/selectors";
+import type { ConceptSummaries } from "./concept-summaries";
 
 export type StatusFilter = "all" | ConceptStatus;
 
@@ -39,18 +40,22 @@ const matchesAll = (terms: readonly string[], words: readonly string[]) =>
   terms.every((term) => words.some((word) => word.startsWith(term)));
 
 const wordCache = new WeakMap<Concept, readonly string[]>();
-function conceptWords(concept: Concept): readonly string[] {
-  let words = wordCache.get(concept);
+const wordCacheWithSummary = new WeakMap<Concept, readonly string[]>();
+function conceptWords(concept: Concept, summaries: ConceptSummaries | null): readonly string[] {
+  const summary = summaries?.[concept.id];
+  const cache = summary ? wordCacheWithSummary : wordCache;
+  let words = cache.get(concept);
   if (!words) {
-    words = tokenize([concept.title, concept.summary, ...concept.keywords].join(" "));
-    wordCache.set(concept, words);
+    words = tokenize([concept.title, summary ?? "", ...concept.keywords].join(" "));
+    cache.set(concept, words);
   }
   return words;
 }
 
 /**
  * Filters the catalog for the explorer.
- * - Every word of the query must start a word in a concept's title, summary or keywords.
+ * - Every word of the query must start a word in a concept's title, keywords or summary
+ *   (summaries count once they have loaded; see concept-summaries.ts).
  * - A query that matches a category title keeps all of that category's concepts.
  * - Status and visualization filters always apply.
  * Categories without matching concepts are left out while filtering.
@@ -58,6 +63,7 @@ function conceptWords(concept: Concept): readonly string[] {
 export function filterCatalog(
   filter: ExplorerFilter,
   records: ProgressRecords,
+  summaries: ConceptSummaries | null = null,
   categories: readonly Category[] = allCategories,
 ): CategoryMatch[] {
   const terms = tokenize(filter.query);
@@ -75,7 +81,7 @@ export function filterCatalog(
         return false;
       }
       if (terms.length === 0 || categoryMatches) return true;
-      return matchesAll(terms, conceptWords(concept));
+      return matchesAll(terms, conceptWords(concept, summaries));
     });
 
     return matched.length > 0 ? [{ category, concepts: matched }] : [];

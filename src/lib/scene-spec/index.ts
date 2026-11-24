@@ -86,6 +86,11 @@ export type Beat =
       /** Appear at the start of the route and wait there instead of travelling. */
       readonly stay?: boolean;
       readonly duration?: number;
+      /**
+       * Seconds until the next beat starts (default: `duration`). Shorter than the duration
+       * lets the next beats run while this packet is still travelling, e.g. a burst.
+       */
+      readonly next?: number;
       /** Message id (module text) shown when the packet is inspected. */
       readonly message?: string;
     }

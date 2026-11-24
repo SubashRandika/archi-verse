@@ -17,10 +17,12 @@ const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Expected a lowercase 
 export const conceptDefinitionSchema: z.ZodType<ConceptDefinition> = z.strictObject({
   id: slug,
   title: z.string().min(2),
-  summary: z.string().min(30).max(260),
   keywords: z.array(z.string().min(1)).optional(),
   moduleId: slug.optional(),
 });
+
+/** One plain-language sentence (or two short ones) per concept. */
+export const conceptSummariesSchema = z.record(slug, z.string().min(30).max(260));
 
 export const conceptRefSchema: z.ZodType<ConceptRef> = z.strictObject({ ref: slug });
 

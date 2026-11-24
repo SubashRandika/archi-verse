@@ -131,7 +131,13 @@ const NETWORK = ["browser", "hop-1", "hop-2", "gateway"];
 const send = (
   connection: string,
   flow: "request" | "response" | "error",
-  options: { message?: string; duration?: number; back?: boolean; stay?: boolean } = {},
+  options: {
+    message?: string;
+    duration?: number;
+    next?: number;
+    back?: boolean;
+    stay?: boolean;
+  } = {},
 ): Beat => ({
   type: "packet",
   connection,
@@ -139,8 +145,44 @@ const send = (
   reverse: options.back,
   stay: options.stay,
   duration: options.duration,
+  next: options.next,
   message: options.message,
 });
+
+/**
+ * A burst: `count` requests in flight at once, launched `every` seconds apart. The gateway's
+ * allowance badge counts down as each one arrives, from `left - 1` to `left - count`.
+ */
+function burst(count: number, left: number, every = 0.3, travel = 1): Beat[] {
+  const launches = Array.from({ length: count }, (_, i) => i * every);
+  const arrivals = launches.map((at) => at + travel);
+  const events = [
+    ...launches.map((at) => ({
+      at,
+      beat: send("browser-gateway", "request", {
+        duration: travel,
+        next: 0,
+        message: "request",
+      }),
+    })),
+    ...arrivals.map((at, i) => {
+      const remaining = left - i - 1;
+      return {
+        at,
+        beat: status("gateway", remaining === 0 ? "warning" : "info", `${remaining} of 60 left`),
+      };
+    }),
+  ].sort((a, b) => a.at - b.at);
+  // Turn absolute times into a sequence: each event, then a wait until the next one.
+  const beats: Beat[] = [];
+  let now = 0;
+  for (const { at, beat } of events) {
+    if (at > now) beats.push(wait(at - now));
+    now = Math.max(now, at);
+    beats.push(beat);
+  }
+  return beats;
+}
 const work = (
   component: string,
   duration?: number,
@@ -163,23 +205,16 @@ const wait = (duration: number): Beat => ({ type: "wait", duration });
 export const apiGatewayModule: LearningModule = {
   id: "api-gateway",
   layout,
-  chapters: [
-    { id: "request", title: "The request" },
-    { id: "gateway", title: "The gateway" },
-    { id: "backend", title: "The backend" },
-    { id: "return-trip", title: "The return trip" },
-  ],
+  chapters: [{ id: "request" }, { id: "gateway" }, { id: "backend" }, { id: "return-trip" }],
   steps: [
     {
       id: "meet-the-client",
       chapterId: "request",
-      title: "Meet the client",
       scene: { focus: ["browser"], frame: ALL, beats: [work("browser", 1)] },
     },
     {
       id: "anatomy-of-a-request",
       chapterId: "request",
-      title: "Anatomy of an HTTP request",
       scene: {
         focus: ["browser"],
         frame: ["browser", "hop-1"],
@@ -191,7 +226,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "across-the-network",
       chapterId: "request",
-      title: "Across the network",
       scene: {
         focus: NETWORK,
         beats: [send("browser-gateway", "request", { duration: 2.4, message: "request" })],
@@ -200,7 +234,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "one-front-door",
       chapterId: "gateway",
-      title: "One front door",
       scene: {
         focus: ["gateway"],
         frame: ["gateway", "identity", "orders-1", "orders-2", "users"],
@@ -215,7 +248,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "authentication",
       chapterId: "gateway",
-      title: "Authentication",
       scene: {
         focus: ["gateway", "identity"],
         beats: [stage("auth", 1), signal("gateway-identity", 0.8), stage("auth", 0.6)],
@@ -224,7 +256,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "rate-limiting",
       chapterId: "gateway",
-      title: "Rate limiting",
       scene: {
         focus: ["gateway"],
         initial: { status: { gateway: { tone: "info", badge: "58 of 60 left" } } },
@@ -234,7 +265,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "validation-and-routing",
       chapterId: "gateway",
-      title: "Validation and routing",
       scene: {
         focus: ["gateway", "orders-1", "orders-2"],
         frame: ["gateway", "orders-1", "orders-2", "users"],
@@ -248,7 +278,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "business-logic",
       chapterId: "backend",
-      title: "Business logic",
       scene: {
         focus: ["orders-1", "users"],
         beats: [
@@ -262,7 +291,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "querying-the-database",
       chapterId: "backend",
-      title: "Querying the database",
       scene: {
         focus: ["orders-1", "postgres"],
         beats: [
@@ -275,7 +303,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "building-the-response",
       chapterId: "backend",
-      title: "Building the response",
       scene: {
         focus: ["orders-1"],
         frame: ["gateway", "orders-1"],
@@ -293,7 +320,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "response-flows-back",
       chapterId: "return-trip",
-      title: "The response flows back",
       scene: {
         focus: [...NETWORK, "orders-1"],
         beats: [
@@ -311,7 +337,6 @@ export const apiGatewayModule: LearningModule = {
     {
       id: "full-lifecycle",
       chapterId: "return-trip",
-      title: "The full lifecycle",
       scene: {
         focus: ALL,
         beats: [
@@ -346,13 +371,10 @@ export const apiGatewayModule: LearningModule = {
   scenarios: [
     {
       id: "unauthorized",
-      title: "401 Unauthorized",
-      summary: "An expired token is turned away at the door, then refreshed.",
       branchesFromStepId: "authentication",
       steps: [
         {
           id: "401-expired-token",
-          title: "An expired token arrives",
           scene: {
             focus: NETWORK,
             frame: [...NETWORK, "identity"],
@@ -366,7 +388,6 @@ export const apiGatewayModule: LearningModule = {
         },
         {
           id: "401-gateway-answers",
-          title: "The gateway answers 401",
           scene: {
             focus: NETWORK,
             initial: { status: { gateway: { tone: "error", badge: "401" } } },
@@ -375,7 +396,6 @@ export const apiGatewayModule: LearningModule = {
         },
         {
           id: "401-refresh-and-retry",
-          title: "Refresh and try again",
           scene: {
             focus: [...NETWORK, "identity"],
             beats: [
@@ -392,25 +412,18 @@ export const apiGatewayModule: LearningModule = {
     },
     {
       id: "rate-limited",
-      title: "429 Too Many Requests",
-      summary: "A burst uses up the allowance; the gateway asks the client to slow down.",
       branchesFromStepId: "rate-limiting",
       steps: [
         {
           id: "429-burst",
-          title: "A burst of requests",
           scene: {
             focus: NETWORK,
             initial: { status: { gateway: { tone: "info", badge: "5 of 60 left" } } },
-            beats: [4, 3, 2, 1, 0].flatMap((left) => [
-              send("browser-gateway", "request", { duration: 0.45, message: "request" }),
-              status("gateway", left === 0 ? "warning" : "info", `${left} of 60 left`),
-            ]),
+            beats: [...burst(5, 5), wait(0.6)],
           },
         },
         {
           id: "429-too-many",
-          title: "The gateway answers 429",
           scene: {
             focus: NETWORK,
             initial: { status: { gateway: { tone: "warning", badge: "0 of 60 left" } } },
@@ -424,13 +437,12 @@ export const apiGatewayModule: LearningModule = {
         },
         {
           id: "429-back-off",
-          title: "Back off and retry",
           scene: {
             focus: NETWORK,
             initial: { status: { gateway: { tone: "error", badge: "429" } } },
             beats: [
               status("browser", "warning", "waiting 20 s"),
-              wait(1.5),
+              wait(2.2),
               status("browser", null),
               status("gateway", "info", "20 of 60 left"),
               send("browser-gateway", "request", { message: "request" }),
@@ -444,13 +456,10 @@ export const apiGatewayModule: LearningModule = {
     },
     {
       id: "timeout",
-      title: "Timeout, then retry",
-      summary: "A slow service makes the gateway give up; the client retries with backoff.",
       branchesFromStepId: "validation-and-routing",
       steps: [
         {
           id: "timeout-slow-service",
-          title: "The service is slow",
           scene: {
             focus: ["gateway", "orders-1"],
             frame: ["gateway", "orders-1", "orders-2"],
@@ -467,7 +476,6 @@ export const apiGatewayModule: LearningModule = {
         },
         {
           id: "timeout-gateway-answers",
-          title: "The gateway answers 504",
           scene: {
             focus: NETWORK,
             frame: [...NETWORK, "orders-1"],
@@ -482,7 +490,6 @@ export const apiGatewayModule: LearningModule = {
         },
         {
           id: "timeout-retry-with-backoff",
-          title: "Retry with backoff",
           scene: {
             focus: [...NETWORK, "orders-2"],
             frame: [...NETWORK, "orders-1", "orders-2"],
@@ -512,13 +519,10 @@ export const apiGatewayModule: LearningModule = {
     },
     {
       id: "unavailable",
-      title: "503, rerouted",
-      summary: "One instance goes down and traffic moves to the healthy one.",
       branchesFromStepId: "validation-and-routing",
       steps: [
         {
           id: "503-instance-down",
-          title: "An instance goes down",
           scene: {
             focus: ["gateway", "orders-1", "orders-2"],
             beats: [
@@ -532,7 +536,6 @@ export const apiGatewayModule: LearningModule = {
         },
         {
           id: "503-routed-around",
-          title: "Routed around it",
           scene: {
             focus: [...NETWORK, "orders-2"],
             frame: [...NETWORK, "orders-1", "orders-2"],
@@ -552,7 +555,6 @@ export const apiGatewayModule: LearningModule = {
         },
         {
           id: "503-all-down",
-          title: "If every instance is down",
           scene: {
             focus: [...NETWORK, "orders-1", "orders-2"],
             initial: { status: { "orders-1": { tone: "down", badge: "down" } } },

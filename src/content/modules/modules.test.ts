@@ -1,7 +1,8 @@
 import { concepts } from "@/content/catalog";
 import { getModule, modules } from "./index";
 import { learningModuleSchema, moduleTextSchema } from "./schema";
-import { getModuleText } from "./text";
+import { LOCALES } from "@/lib/locale";
+import { getModuleLabels, getModuleText } from "./text";
 
 describe.each(Object.values(modules))("module $id", (learningModule) => {
   const text = getModuleText(learningModule.id)!;
@@ -82,23 +83,53 @@ describe.each(Object.values(modules))("module $id", (learningModule) => {
     }
   });
 
-  it("explains every step at both levels, with known terms and messages", () => {
-    for (const step of allSteps) {
-      const stepText = text.steps[step.id];
-      expect(stepText, step.id).toBeDefined();
-      expect(stepText!.explanation.beginner.length, step.id).toBeGreaterThan(0);
-      expect(stepText!.explanation.advanced.length, step.id).toBeGreaterThan(0);
-      for (const term of stepText!.terms) expect(text.glossary, step.id).toHaveProperty(term);
-      if (stepText!.message) expect(text.messages, step.id).toHaveProperty(stepText!.message);
-    }
-    // No text for steps that don't exist.
+  it("links every step to known terms and messages", () => {
     expect(Object.keys(text.steps).sort()).toEqual(allSteps.map((step) => step.id).sort());
+    for (const [stepId, links] of Object.entries(text.steps)) {
+      if (links.message) expect(text.messages, stepId).toHaveProperty(links.message);
+      for (const term of links.terms) expect(text.locales.en.glossary, stepId).toHaveProperty(term);
+    }
   });
 
-  it("documents every selectable component", () => {
-    for (const component of components.filter((c) => !c.decorative)) {
-      expect(text.components, component.id).toHaveProperty(component.id);
+  it.each(LOCALES)("has complete %s text: titles, both levels, parts, captions", (locale) => {
+    const copy = text.locales[locale];
+    const ids = (record: object) => Object.keys(record).sort();
+    expect(ids(copy.chapters)).toEqual([...chapterIds].sort());
+    expect(ids(copy.scenarios)).toEqual(learningModule.scenarios.map((s) => s.id).sort());
+    expect(ids(copy.steps)).toEqual(allSteps.map((step) => step.id).sort());
+    expect(ids(copy.messages)).toEqual(ids(text.messages));
+    expect(ids(copy.components)).toEqual(
+      components
+        .filter((c) => !c.decorative)
+        .map((c) => c.id)
+        .sort(),
+    );
+    expect(ids(copy.glossary)).toEqual(ids(text.locales.en.glossary));
+    for (const [stepId, step] of Object.entries(copy.steps)) {
+      for (const level of ["beginner", "advanced"] as const) {
+        expect(step.explanation[level].body.length, `${stepId} ${level}`).toBeGreaterThan(0);
+        expect(step.explanation[level].example.length, `${stepId} ${level}`).toBeGreaterThan(0);
+      }
     }
+  });
+
+  it("keeps technical terms in English and writes Sinhala text in Sinhala script", () => {
+    const sinhala = /[඀-෿]/;
+    const { en, si } = text.locales;
+    for (const [id, entry] of Object.entries(si.glossary)) {
+      expect(entry.term, id).toBe(en.glossary[id]?.term);
+      expect(entry.definition, id).toMatch(sinhala);
+    }
+    for (const [id, step] of Object.entries(si.steps)) {
+      expect(step.watch, id).toMatch(sinhala);
+      expect(JSON.stringify(step.explanation), id).toMatch(sinhala);
+    }
+  });
+
+  it("delivers titles in every language for the studio", () => {
+    const labels = getModuleLabels(learningModule.id)!;
+    expect(labels.en.steps["authentication"]).toBe("Authentication");
+    expect(labels.si.chapters["return-trip"]).toMatch(/[඀-෿]/);
   });
 });
 

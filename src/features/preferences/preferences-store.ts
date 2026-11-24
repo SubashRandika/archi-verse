@@ -1,6 +1,7 @@
 import * as z from "zod/mini";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { DEFAULT_LOCALE, type Locale, LOCALES } from "@/lib/locale";
 
 /**
  * Learner preferences, persisted to localStorage (ADR-0004). Each field is validated on load
@@ -21,6 +22,7 @@ export type PanelLayout = Readonly<Record<string, number>>;
 
 const DEFAULTS = {
   explanationLevel: "beginner" as ExplanationLevel,
+  locale: DEFAULT_LOCALE as Locale,
   playbackSpeed: 1 as PlaybackSpeed,
   panelLayouts: {} as Readonly<Record<string, PanelLayout>>,
   lastConceptId: undefined as string | undefined,
@@ -28,6 +30,7 @@ const DEFAULTS = {
 
 const persistedPreferencesSchema = z.object({
   explanationLevel: z.catch(z.enum(EXPLANATION_LEVELS), DEFAULTS.explanationLevel),
+  locale: z.catch(z.enum(LOCALES), DEFAULTS.locale),
   playbackSpeed: z.catch(
     z.number().check(z.refine((value) => (PLAYBACK_SPEEDS as readonly number[]).includes(value))),
     DEFAULTS.playbackSpeed,
@@ -47,6 +50,7 @@ export function parsePersistedPreferences(value: unknown): typeof DEFAULTS {
   }
   return {
     explanationLevel: parsed.data.explanationLevel,
+    locale: parsed.data.locale,
     playbackSpeed: parsed.data.playbackSpeed as PlaybackSpeed,
     panelLayouts: parsed.data.panelLayouts,
     lastConceptId: parsed.data.lastConceptId,
@@ -55,10 +59,13 @@ export function parsePersistedPreferences(value: unknown): typeof DEFAULTS {
 
 interface PreferencesState {
   explanationLevel: ExplanationLevel;
+  /** Language of the learning content and the studio. */
+  locale: Locale;
   playbackSpeed: PlaybackSpeed;
   panelLayouts: Readonly<Record<string, PanelLayout>>;
   lastConceptId: string | undefined;
   setExplanationLevel: (level: ExplanationLevel) => void;
+  setLocale: (locale: Locale) => void;
   setPlaybackSpeed: (speed: PlaybackSpeed) => void;
   setPanelLayout: (groupId: string, layout: PanelLayout) => void;
   setLastConceptId: (conceptId: string) => void;
@@ -69,6 +76,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set) => ({
       ...DEFAULTS,
       setExplanationLevel: (explanationLevel) => set({ explanationLevel }),
+      setLocale: (locale) => set({ locale }),
       setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
       setPanelLayout: (groupId, layout) =>
         set((state) => ({ panelLayouts: { ...state.panelLayouts, [groupId]: layout } })),
@@ -79,8 +87,9 @@ export const usePreferencesStore = create<PreferencesState>()(
       version: PREFERENCES_STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ explanationLevel, playbackSpeed, panelLayouts, lastConceptId }) => ({
+      partialize: ({ explanationLevel, locale, playbackSpeed, panelLayouts, lastConceptId }) => ({
         explanationLevel,
+        locale,
         playbackSpeed,
         panelLayouts,
         lastConceptId,

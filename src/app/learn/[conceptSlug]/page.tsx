@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { concepts, getConcept } from "@/content/catalog";
+import { getConceptSummary } from "@/content/catalog/summaries";
+import { getModuleLabels } from "@/content/modules/text";
 import { PlannedConceptStudio } from "@/features/studio/planned-concept-studio";
 import { Studio } from "@/features/studio/studio";
 
@@ -16,7 +18,7 @@ export async function generateMetadata({
 }: PageProps<"/learn/[conceptSlug]">): Promise<Metadata> {
   const { conceptSlug } = await params;
   const concept = getConcept(conceptSlug);
-  return concept ? { title: concept.title, description: concept.summary } : {};
+  return concept ? { title: concept.title, description: getConceptSummary(concept.id) } : {};
 }
 
 export default async function ConceptPage({ params }: PageProps<"/learn/[conceptSlug]">) {
@@ -24,5 +26,10 @@ export default async function ConceptPage({ params }: PageProps<"/learn/[concept
   const concept = getConcept(conceptSlug);
   if (!concept) notFound();
 
-  return concept.availability === "available" ? <Studio /> : <PlannedConceptStudio />;
+  const labels = getModuleLabels(concept.moduleId);
+  return labels ? (
+    <Studio labels={labels} />
+  ) : (
+    <PlannedConceptStudio summary={getConceptSummary(concept.id) ?? ""} />
+  );
 }

@@ -3,6 +3,7 @@
 import { Circle, CircleCheck } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useStrings } from "@/features/locale/use-strings";
 import { cn } from "@/lib/utils";
 import { useProgressStore } from "./progress-store";
 
@@ -20,6 +21,7 @@ export function CompletionToggle({ conceptId, compact = false }: CompletionToggl
   const completed = useProgressStore((state) => state.concepts[conceptId]?.status === "completed");
   const markCompleted = useProgressStore((state) => state.markCompleted);
   const markNotStarted = useProgressStore((state) => state.markNotStarted);
+  const t = useStrings();
 
   return (
     <Tooltip>
@@ -32,7 +34,7 @@ export function CompletionToggle({ conceptId, compact = false }: CompletionToggl
             onPressedChange={(pressed) =>
               pressed ? markCompleted(conceptId) : markNotStarted(conceptId)
             }
-            aria-label={compact ? "Completed" : undefined}
+            aria-label={compact ? t.completed : undefined}
             className={cn(
               "h-7 gap-1.5 border-rule-strong px-2.5 text-caption text-graphite hover:text-paper",
               "aria-pressed:border-flow-response/50 aria-pressed:bg-flow-response/10 aria-pressed:text-flow-response",
@@ -43,10 +45,10 @@ export function CompletionToggle({ conceptId, compact = false }: CompletionToggl
       >
         {/* Reads like a checkbox: empty circle when off, check when on. */}
         {completed ? <CircleCheck aria-hidden="true" /> : <Circle aria-hidden="true" />}
-        {!compact && "Completed"}
+        {!compact && t.completed}
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        {completed ? "Mark as not started" : "Mark this concept as completed"}
+        {completed ? t.markNotStarted : t.markCompleted}
       </TooltipContent>
     </Tooltip>
   );

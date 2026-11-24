@@ -64,6 +64,8 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/features/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    // Tests may read server-only content directly, as the routes do.
+    ignores: ["**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -71,9 +73,19 @@ const eslintConfig = defineConfig([
           patterns: [
             { group: ["@/app/*"], message: "features/ must not import route modules from app/." },
             {
-              group: ["@/content/modules/text", "@/content/modules/*/text"],
+              group: [
+                "@/content/modules/text",
+                "@/content/modules/*/text",
+                "@/content/modules/*/text/*",
+                "@/content/modules/text-blocks",
+              ],
               message:
                 "Module text is server-only: load it in an app/ route and pass it as props, so it ships as route data instead of client JavaScript.",
+            },
+            {
+              group: ["@/content/catalog/summaries"],
+              message:
+                "Concept summaries stay out of the first-load bundle: pass them from a route, or load them with loadConceptSummaries() (features/explorer/concept-summaries).",
             },
           ],
         },

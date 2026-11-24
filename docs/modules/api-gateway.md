@@ -1,10 +1,12 @@
 # Module script: API Gateway, the life of a request
 
-- **Status:** Draft for review (Phase 5, checkpoint 1). Nothing here is implemented yet.
-- **How to review:** edit this file directly, or reply with step numbers and changes. Items
-  marked **Review:** are judgement calls worth a second look.
-- **What happens next:** the approved text becomes typed content in
-  `src/content/modules/api-gateway/`. Each step's "Scene" block becomes that step's beats.
+- **Status:** Approved 2026-11-24 (Phase 5, checkpoint 1). The learning objectives, running
+  example and scene notes below still apply.
+- **Step text has moved:** after checkpoint 2 the explanations were rewritten (Beginner in the
+  style of explaining to a five-year-old, Advanced with a worked example) and translated into
+  Sinhala. The source of truth is now `src/content/modules/api-gateway/text/`; read both
+  languages in [api-gateway.text.md](api-gateway.text.md) (generated). The step text further
+  down this file is the original approved draft, kept for history.
 
 ---
 

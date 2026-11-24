@@ -40,25 +40,26 @@ reusable across concepts without knowing about any specific concept.
 Folders are created when the phase that needs them starts (no empty abstractions).
 Status: ✅ exists · ⏳ planned.
 
-| Path                        | Responsibility                                                   | Phase   |
-| --------------------------- | ---------------------------------------------------------------- | ------- |
-| `src/app/`                  | Routes: `/` (resume), `/learn` layout, `/learn/[conceptSlug]`    | ✅ 2–3  |
-| `src/components/`           | App-wide UI helpers (`IconButton`) + `ui/` shadcn primitives     | ✅ 2    |
-| `src/features/shell/`       | Responsive frame, resizable/collapsible panels, `useShell()`     | ✅ 2    |
-| `src/features/explorer/`    | Category/concept navigation, search, progress indicators         | ✅ 2–3  |
-| `src/features/studio/`      | Studio composition, session store, 3D stage, outline, shortcuts  | ✅ 2–4  |
-| `src/features/inspector/`   | Step explanation, component details, explanation blocks          | ✅ 2, 5 |
-| `src/features/playback/`    | Playback dock (title block), driving the session store           | ✅ 2–4  |
-| `src/features/progress/`    | Persisted progress store, selectors, completion, hydration       | ✅ 3    |
-| `src/features/preferences/` | Persisted preferences: level, speed, panel layouts, last concept | ✅ 3    |
-| `src/engine/scene/`         | Canvas, isometric camera rig + framing, labels, stats, WebGL     | ✅ 4    |
-| `src/engine/primitives/`    | Reusable 3D parts: component shapes, wires, packets, resources   | ✅ 4    |
-| `src/engine/timeline/`      | Beats → GSAP timeline compiler, step playback controller         | ✅ 4    |
-| `src/content/catalog/`      | 16 categories, 291 concepts (one file per category)              | ✅ 2–3  |
-| `src/content/modules/<id>/` | One learning module: layout, chapters, steps (scenarios in 5)    | ✅ 4–5  |
-| `src/lib/scene-spec/`       | Scene layout, step scene and beat types shared by content/engine | ✅ 4    |
-| `src/lib/`                  | Utilities, `useReducedMotion`                                    | ✅ 1+   |
-| `src/test/`                 | Test helpers (`renderInStudio`)                                  | ✅ 2    |
+| Path                        | Responsibility                                                     | Phase   |
+| --------------------------- | ------------------------------------------------------------------ | ------- |
+| `src/app/`                  | Routes: `/`, `/learn` layout, `/learn/[conceptSlug]`, `@inspector` | ✅ 2–5  |
+| `src/components/`           | App-wide UI helpers (`IconButton`) + `ui/` shadcn primitives       | ✅ 2    |
+| `src/features/shell/`       | Responsive frame, resizable/collapsible panels, `useShell()`       | ✅ 2    |
+| `src/features/explorer/`    | Category/concept navigation, search, progress indicators           | ✅ 2–3  |
+| `src/features/studio/`      | Studio composition, session store, 3D stage, outline, shortcuts    | ✅ 2–4  |
+| `src/features/inspector/`   | Explanation panel: step view, part view, explanation blocks        | ✅ 2, 5 |
+| `src/features/locale/`      | Studio interface strings (English, Sinhala), `useStrings()`        | ✅ 5    |
+| `src/features/playback/`    | Playback dock (title block), driving the session store             | ✅ 2–4  |
+| `src/features/progress/`    | Persisted progress store, selectors, completion, hydration         | ✅ 3    |
+| `src/features/preferences/` | Persisted preferences: level, language, speed, layouts, last       | ✅ 3, 5 |
+| `src/engine/scene/`         | Canvas, isometric camera rig + framing, labels, stats, WebGL       | ✅ 4    |
+| `src/engine/primitives/`    | Reusable 3D parts: component shapes, wires, packets, resources     | ✅ 4    |
+| `src/engine/timeline/`      | Beats → GSAP timeline compiler, step playback controller           | ✅ 4    |
+| `src/content/catalog/`      | 16 categories, 291 concepts; summaries in their own file           | ✅ 2–5  |
+| `src/content/modules/<id>/` | `structure.ts` (layout, steps, beats) + `text/` (per language)     | ✅ 4–5  |
+| `src/lib/scene-spec/`       | Scene layout, step scene and beat types shared by content/engine   | ✅ 4    |
+| `src/lib/`                  | Utilities, `useReducedMotion`, locales                             | ✅ 1+   |
+| `src/test/`                 | Test helpers (`renderInStudio`)                                    | ✅ 2    |
 
 ### Placeholders
 
@@ -66,8 +67,7 @@ Phase 2 uses realistic placeholder content so the shell can be judged with real 
 placeholder lives in a `placeholder.ts` / `placeholder-*.tsx` file (or is marked `PLACEHOLDER` in
 its doc comment) and names the phase that replaces it:
 
-- `features/inspector/placeholder.ts` (draft explanations for the 3 demo steps, one component
-  doc) → Phase 5
+- ~~`features/inspector/placeholder.ts`~~ → replaced by the API Gateway module text in Phase 5
 - ~~`features/studio/placeholder.ts`, `studio-preview-context.tsx`~~ → replaced by the module
   data and the session store in Phase 4
 - `features/studio/static-scene.tsx` (formerly the placeholder sketch) is now the **WebGL
@@ -82,6 +82,45 @@ its doc comment) and names the phase that replaces it:
 - `types.ts` holds Zod-free types (shipped to the browser); `schema.ts` holds the matching Zod
   schemas, used only by `catalog.test.ts`, so Zod's full build stays out of the bundle.
 - Routes: every concept gets a static page at `/learn/<id>` (`generateStaticParams`).
+- Summaries live in `summaries.ts`, outside the first-load bundle (Phase 5). Server routes import
+  them (page metadata, planned-concept pages); the sidebar loads them lazily on the first search
+  or preview card (`features/explorer/concept-summaries.ts`). Search matches titles and keywords
+  at once, and summaries once loaded. ESLint forbids static imports from client code.
+
+## Learning modules and languages
+
+A module has two halves (`src/content/modules/types.ts`):
+
+- **Structure** (`<id>/structure.ts`): ids, the scene layout and each step's beats. Small and
+  language-free; the client imports it because the 3D scene and the dock need it.
+- **Text** (`<id>/text/`): `shared.ts` (the terms and message of each step, message code),
+  `en.ts` / `en-steps.ts` and `si.ts` / `si-steps.ts` (titles, explanations at both levels,
+  part descriptions, glossary, captions). **Server-only.**
+
+Text reaches the browser as **route data**, not JavaScript:
+
+```text
+/learn/[conceptSlug]/page.tsx             → <Studio labels={titles in every language} />
+/learn/@inspector/[conceptSlug]/page.tsx  → <InspectorPanel text={all text, every language} />
+```
+
+`@inspector` is a parallel route, so the panel's content comes from the server while the shell
+around it stays mounted. Both languages ship with the page, so switching is instant (the
+API Gateway page is ~57 KB gzipped HTML). ESLint forbids importing module text from
+`features/` or `components/`.
+
+- **Levels:** Beginner explains each step as if to a five-year-old ("In simple words" plus a
+  "Like in real life" example); Advanced gives the technical detail plus a worked example. Both
+  share a "Watch in the scene" line.
+- **Languages** (`lib/locale.ts`): English (default) and Sinhala. Sinhala uses a friendly spoken
+  style and keeps technical terms in English. The learner's choice is a persisted preference.
+  Studio interface strings are in `features/locale/strings.ts`; the sidebar and catalog stay
+  English. Labels inside the 3D scene are technical names and stay English.
+- **Fonts:** IBM Plex has no Sinhala glyphs, so Noto Sans Sinhala follows it in every font stack.
+  Its `@font-face` covers only the Sinhala block, so it downloads only when Sinhala is on screen.
+- `modules.test.ts` checks both languages have the same steps, parts, terms and captions, every
+  step has both levels, glossary terms stay English and Sinhala text is in Sinhala script.
+- Review copy: `docs/modules/api-gateway.text.md` (generated from the text files).
 
 ## Persistence
 
@@ -91,7 +130,8 @@ its doc comment) and names the phase that replaces it:
   startup (saving the panel layout, remembering the last concept) waits for `useHasHydrated()`.
 - Stored data is validated with `zod/mini` on load: progress record by record, preferences field
   by field. Invalid data falls back to defaults with a console warning.
-- Keys: `archiverse:progress` (v1), `archiverse:preferences` (v1).
+- Keys: `archiverse:progress` (v1), `archiverse:preferences` (v1; `locale` added in Phase 5,
+  defaulting to English when absent, so no migration is needed).
 
 ## State tiers
 
@@ -133,6 +173,18 @@ The original 200 KB explorer budget was set before the framework baseline could 
 is not reachable with this stack (the baseline alone is ~190 KB). **Revised after Phase 3
 (approved):** 350 KB for the shell. Lazy-loading menus, dialogs and preview cards (est. 30–50 KB)
 is scheduled for Phase 6.
+
+**Measured at the end of Phase 5** (`npm run check:bundles`):
+
+| Budget                           | Measured | Limit  |
+| -------------------------------- | -------- | ------ |
+| Module page first load           | 350 KB   | 350 KB |
+| Planned-concept page first load  | 350 KB   | 350 KB |
+| Lazy 3D chunk (three, R3F, GSAP) | 288 KB   | 300 KB |
+| Concept summaries (lazy chunk)   | 14 KB    | —      |
+
+The shell is at its limit. Known slack for Phase 6: the studio strings module is duplicated in
+two route chunks (~2 KB), plus the lazy menus and dialogs above.
 
 **Phase 4 split budget (approved):** the original "≤ 450 KB studio total" could not hold three.js
 on top of the shell, so the budget is split into the first load (what blocks the page) and the

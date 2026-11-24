@@ -1,4 +1,5 @@
 import { categories } from "@/content/catalog";
+import { conceptSummaries } from "@/content/catalog/summaries";
 import type { ProgressRecords } from "@/features/progress/progress-store";
 import { filterCatalog, isFiltering, NO_FILTER } from "./filter";
 
@@ -9,7 +10,7 @@ const records: ProgressRecords = {
 };
 
 const titles = (filter: Parameters<typeof filterCatalog>[0]) =>
-  filterCatalog(filter, records).map((match) => ({
+  filterCatalog(filter, records, conceptSummaries).map((match) => ({
     category: match.category.id,
     concepts: match.concepts.map((concept) => concept.id),
   }));
@@ -28,6 +29,21 @@ describe("filterCatalog", () => {
     expect(titles({ ...NO_FILTER, query: "kafka" })).toEqual([
       { category: "backend-distributed-systems", concepts: ["apache-kafka"] },
     ]);
+  });
+
+  it("matches titles and keywords before the summaries have loaded", () => {
+    const ids = (query: string) =>
+      filterCatalog({ ...NO_FILTER, query }, records).flatMap((match) =>
+        match.concepts.map((concept) => concept.id),
+      );
+    expect(ids("kafka")).toEqual(["apache-kafka"]);
+    // "lived" (long-lived) appears in the Server-Sent Events summary, not its title or keywords.
+    expect(ids("lived")).not.toContain("server-sent-events");
+    expect(
+      filterCatalog({ ...NO_FILTER, query: "lived" }, records, conceptSummaries).flatMap((m) =>
+        m.concepts.map((concept) => concept.id),
+      ),
+    ).toContain("server-sent-events");
   });
 
   it("matches word starts, not arbitrary substrings", () => {

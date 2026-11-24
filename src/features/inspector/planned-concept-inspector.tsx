@@ -7,8 +7,11 @@ import { useCurrentConcept } from "@/features/studio/current-concept";
 
 const RELATED_LIMIT = 6;
 
-/** The inspector for a concept without a learning module yet: an overview and related links. */
-export function PlannedConceptInspector() {
+/**
+ * The inspector for a concept without a learning module yet: an overview and related links.
+ * `summary` comes from the route as data (summaries are not in the client bundle).
+ */
+export function PlannedConceptInspector({ summary }: { summary: string }) {
   const { concept, activeCategoryId, setPreferredCategoryId } = useCurrentConcept();
   const category = getCategory(activeCategoryId);
   const related = category
@@ -18,7 +21,7 @@ export function PlannedConceptInspector() {
     : [];
 
   return (
-    <aside aria-label="Learning inspector" className="flex h-full min-w-0 flex-col bg-hull">
+    <aside aria-label="Explanation" className="flex h-full min-w-0 flex-col bg-hull">
       <div className="flex h-14 shrink-0 items-center border-b border-rule px-5">
         <p className="text-caption font-medium text-paper">About this concept</p>
       </div>
@@ -26,7 +29,7 @@ export function PlannedConceptInspector() {
         <div className="flex flex-col gap-6 px-5 pt-5 pb-8">
           <header>
             <h2 className="text-title font-semibold text-paper">{concept.title}</h2>
-            <p className="mt-3 text-reading text-paper/90">{concept.summary}</p>
+            <p className="mt-3 text-reading text-paper/90">{summary}</p>
           </header>
 
           {concept.keywords.length > 0 && (

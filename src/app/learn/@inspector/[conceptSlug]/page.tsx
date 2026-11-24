@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { concepts, getConcept } from "@/content/catalog";
+import { getConceptSummary } from "@/content/catalog/summaries";
 import { getModuleText } from "@/content/modules/text";
 import { InspectorPanel } from "@/features/inspector/inspector-panel";
 import { PlannedConceptInspector } from "@/features/inspector/planned-concept-inspector";
@@ -21,5 +22,9 @@ export default async function InspectorSlot({ params }: PageProps<"/learn/[conce
   if (!concept) notFound();
 
   const text = getModuleText(concept.moduleId);
-  return text ? <InspectorPanel text={text} /> : <PlannedConceptInspector />;
+  return text ? (
+    <InspectorPanel text={text} />
+  ) : (
+    <PlannedConceptInspector summary={getConceptSummary(concept.id) ?? ""} />
+  );
 }

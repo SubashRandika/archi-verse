@@ -2,12 +2,15 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlannedConceptInspector } from "@/features/inspector/planned-concept-inspector";
 import { useProgressStore } from "@/features/progress/progress-store";
+import { getConceptSummary } from "@/content/catalog/summaries";
 import { renderInStudio } from "@/test/render";
 import { PlannedConceptStudio } from "./planned-concept-studio";
 
 describe("PlannedConceptStudio", () => {
   it("explains the concept and that its visualization is planned", () => {
-    renderInStudio(<PlannedConceptStudio />, { conceptSlug: "cap-theorem" });
+    renderInStudio(<PlannedConceptStudio summary={getConceptSummary("cap-theorem")!} />, {
+      conceptSlug: "cap-theorem",
+    });
 
     expect(screen.getByRole("heading", { level: 1, name: "CAP Theorem" })).toBeInTheDocument();
     expect(screen.getByText(/must choose between staying consistent/)).toBeInTheDocument();
@@ -21,7 +24,9 @@ describe("PlannedConceptStudio", () => {
   });
 
   it("lists every category a shared concept belongs to", () => {
-    renderInStudio(<PlannedConceptStudio />, { conceptSlug: "circuit-breaker" });
+    renderInStudio(<PlannedConceptStudio summary={getConceptSummary("circuit-breaker")!} />, {
+      conceptSlug: "circuit-breaker",
+    });
     const categoryList = screen.getByText("Part of these categories").closest("dl");
     expect(categoryList).not.toBeNull();
     expect(
@@ -36,7 +41,9 @@ describe("PlannedConceptStudio", () => {
 
   it("marks the concept completed and back", async () => {
     const user = userEvent.setup();
-    renderInStudio(<PlannedConceptStudio />, { conceptSlug: "cap-theorem" });
+    renderInStudio(<PlannedConceptStudio summary={getConceptSummary("cap-theorem")!} />, {
+      conceptSlug: "cap-theorem",
+    });
     const toggle = screen.getByRole("button", { name: "Completed" });
 
     expect(toggle).toHaveAttribute("aria-pressed", "false");
@@ -51,7 +58,9 @@ describe("PlannedConceptStudio", () => {
 
 describe("PlannedConceptInspector", () => {
   it("shows the summary, alternative names and related concepts", () => {
-    renderInStudio(<PlannedConceptInspector />, { conceptSlug: "server-sent-events" });
+    renderInStudio(<PlannedConceptInspector summary={getConceptSummary("server-sent-events")!} />, {
+      conceptSlug: "server-sent-events",
+    });
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Server-Sent Events (SSE)" }),

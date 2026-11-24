@@ -58,7 +58,7 @@ export type ConceptAvailability = "available" | "planned";
 export interface Concept {
   readonly id: string;
   readonly title: string;
-  readonly summary: string;
+  /** The summary lives in `./summaries`, outside the first-load JavaScript. */
   readonly keywords: readonly string[];
   /** Categories the concept belongs to; the first is its primary category. */
   readonly categoryIds: readonly string[];
@@ -96,7 +96,6 @@ function buildCatalog(definitions: readonly CategoryDefinition[]) {
   const concepts: Concept[] = [...conceptDefinitions.values()].map((definition) => ({
     id: definition.id,
     title: definition.title,
-    summary: definition.summary,
     keywords: definition.keywords ?? [],
     categoryIds: membership.get(definition.id) ?? [],
     availability: definition.moduleId ? "available" : "planned",

@@ -1,5 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from "next/font/google";
+import {
+  IBM_Plex_Mono,
+  IBM_Plex_Sans,
+  IBM_Plex_Sans_Condensed,
+  Noto_Sans_Sinhala,
+} from "next/font/google";
 import { PersistedStateSync } from "@/features/progress/persisted-state";
 import "./globals.css";
 
@@ -19,6 +24,18 @@ const plexCondensed = IBM_Plex_Sans_Condensed({
   variable: "--font-plex-condensed",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+});
+
+/*
+ * Sinhala text (Phase 5): Plex has no Sinhala glyphs, so Noto Sans Sinhala follows it in the
+ * font stacks. Its @font-face only covers the Sinhala block (unicode-range), so browsers
+ * download it only when Sinhala text is on screen; no preload.
+ */
+const notoSinhala = Noto_Sans_Sinhala({
+  variable: "--font-noto-sinhala",
+  subsets: ["sinhala"],
+  weight: ["400", "500", "600"],
+  preload: false,
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -46,7 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // Dark-only product: the `dark` class is static (shadcn components key off it).
     <html
       lang="en"
-      className={`dark ${plexSans.variable} ${plexCondensed.variable} ${plexMono.variable} h-full antialiased`}
+      className={`dark ${plexSans.variable} ${plexCondensed.variable} ${plexMono.variable} ${notoSinhala.variable} h-full antialiased`}
     >
       <head>
         <noscript>

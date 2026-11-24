@@ -114,7 +114,7 @@ function CodeFigure({
   highlighted = false,
 }: {
   caption: string;
-  language: "http" | "sql" | "json";
+  language: "http" | "sql" | "json" | "text";
   lines: readonly string[];
   highlighted?: boolean;
 }) {
@@ -131,6 +131,7 @@ function CodeFigure({
       </figcaption>
       {/* Focusable so keyboard users can scroll long lines (WCAG 2.1.1). */}
       <pre
+        lang="en"
         tabIndex={0}
         className="overflow-x-auto px-3 py-2.5 font-mono text-[0.78rem] leading-relaxed text-paper focus-visible:outline-offset-[-2px]"
       >
@@ -208,19 +209,18 @@ function HttpLine({
   );
 }
 
-export function TermList({ terms }: { terms: readonly GlossaryTerm[] }) {
-  if (terms.length === 0) return null;
+/** Glossary entries as a definition list (the term stays in English in every language). */
+export function TermDefinitions({ terms }: { terms: readonly GlossaryTerm[] }) {
   return (
-    <section aria-label="Terms" className="border-t border-rule pt-4">
-      <h3 className="mb-2.5 text-caption font-medium text-graphite">Terms in this step</h3>
-      <dl className="flex flex-col gap-2.5">
-        {terms.map((entry) => (
-          <div key={entry.term}>
-            <dt className="text-caption font-medium text-paper">{entry.term}</dt>
-            <dd className="text-caption text-graphite">{entry.definition}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
+    <dl className="flex flex-col gap-2.5">
+      {terms.map((entry) => (
+        <div key={entry.term}>
+          <dt lang="en" className="text-caption font-medium text-paper">
+            {entry.term}
+          </dt>
+          <dd className="text-caption text-graphite">{entry.definition}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

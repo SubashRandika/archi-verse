@@ -5,6 +5,8 @@ import { vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ShellContext, type ShellState } from "@/features/shell/shell-context";
 import { CurrentConceptProvider } from "@/features/studio/current-concept";
+import { ModuleLabelsProvider } from "@/features/studio/module-labels";
+import { apiGatewayLabels } from "./module-text";
 
 interface StudioRenderOptions extends Omit<RenderOptions, "wrapper"> {
   shell?: Partial<ShellState>;
@@ -35,7 +37,9 @@ export function renderInStudio(
     wrapper: ({ children }) => (
       <ShellContext.Provider value={shellState}>
         <CurrentConceptProvider initialStepIndex={initialStepIndex}>
-          <TooltipProvider>{children}</TooltipProvider>
+          <ModuleLabelsProvider labels={apiGatewayLabels}>
+            <TooltipProvider>{children}</TooltipProvider>
+          </ModuleLabelsProvider>
         </CurrentConceptProvider>
       </ShellContext.Provider>
     ),

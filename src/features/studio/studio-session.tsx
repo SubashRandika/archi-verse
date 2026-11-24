@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo } from "react";
 import { useStore } from "zustand";
-import type { LearningModule, ModuleChapter, ModuleScenario, ModuleStep } from "@/content/modules";
+import type { LearningModule, ModuleScenario, ModuleStep } from "@/content/modules";
 import { useProgressStore } from "@/features/progress/progress-store";
 import {
   createProgressChannel,
@@ -121,8 +121,8 @@ export function useStepProgress(): ProgressChannel {
 
 export interface CurrentStep {
   readonly step: ModuleStep;
-  /** The step's chapter; a scenario counts as one chapter. */
-  readonly chapter: ModuleChapter;
+  /** The step's chapter id; a scenario counts as one chapter (its id). */
+  readonly chapterId: string;
   /** The scenario being played, if any. */
   readonly scenario: ModuleScenario | undefined;
   readonly index: number;
@@ -139,9 +139,7 @@ export function useCurrentStep(): CurrentStep {
   const step = steps[index] ?? steps[0];
   const scenario = learningModule.scenarios.find((candidate) => candidate.id === trackId);
   const mainStep = learningModule.steps.find((candidate) => candidate.id === step?.id);
-  const chapter = scenario
-    ? { id: scenario.id, title: scenario.title }
-    : learningModule.chapters.find((candidate) => candidate.id === mainStep?.chapterId);
-  if (!step || !chapter) throw new Error(`Module "${learningModule.id}" has no step ${index}.`);
-  return { step, chapter, scenario, index, count: steps.length, steps };
+  const chapterId = scenario ? scenario.id : mainStep?.chapterId;
+  if (!step || !chapterId) throw new Error(`Module "${learningModule.id}" has no step ${index}.`);
+  return { step, chapterId, scenario, index, count: steps.length, steps };
 }

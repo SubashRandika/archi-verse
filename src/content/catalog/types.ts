@@ -29,8 +29,6 @@ export interface ConceptDefinition {
   /** Stable lowercase kebab-case id, also the URL slug. */
   id: string;
   title: string;
-  /** One plain-language sentence (or two short ones). */
-  summary: string;
   /** Extra search terms: abbreviations, synonyms, related tool names. */
   keywords?: readonly string[];
   /** Set when an interactive learning module exists for this concept. */

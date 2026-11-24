@@ -23,6 +23,7 @@ const beat = z.discriminatedUnion("type", [
     reverse: z.boolean().optional(),
     stay: z.boolean().optional(),
     duration: z.number().positive().optional(),
+    next: z.number().min(0).optional(),
     message: id.optional(),
   }),
   z.object({
@@ -48,7 +49,7 @@ const stepScene = z.object({
   beats: z.array(beat).min(1),
 });
 
-const step = z.object({ id, title: z.string().min(3), scene: stepScene });
+const step = z.object({ id, scene: stepScene });
 
 export const learningModuleSchema: z.ZodType<LearningModule> = z.object({
   id,
@@ -77,13 +78,11 @@ export const learningModuleSchema: z.ZodType<LearningModule> = z.object({
       }),
     ),
   }),
-  chapters: z.array(z.object({ id, title: z.string().min(3) })).min(1),
+  chapters: z.array(z.object({ id })).min(1),
   steps: z.array(step.extend({ chapterId: id })).min(1),
   scenarios: z.array(
     z.object({
       id,
-      title: z.string().min(3),
-      summary: z.string().min(10),
       branchesFromStepId: id,
       steps: z.array(step).min(1),
     }),
@@ -91,7 +90,7 @@ export const learningModuleSchema: z.ZodType<LearningModule> = z.object({
 });
 
 const block = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("paragraph"), text: z.string().min(10) }),
+  z.object({ type: z.literal("paragraph"), text: z.string().min(5) }),
   z.object({
     type: z.literal("list"),
     items: z.array(z.object({ term: z.string().optional(), text: z.string().min(3) })).min(1),
@@ -99,7 +98,7 @@ const block = z.discriminatedUnion("type", [
   z.object({ type: z.literal("callout"), text: z.string().min(10) }),
   z.object({
     type: z.literal("code"),
-    language: z.enum(["http", "sql", "json"]),
+    language: z.enum(["http", "sql", "json", "text"]),
     caption: z.string(),
     lines: z.array(z.string()).min(1),
   }),
@@ -112,44 +111,53 @@ const block = z.discriminatedUnion("type", [
   }),
 ]);
 const blocks = z.array(block).min(1);
-const nonEmpty = z.array(z.string().min(2)).min(1);
+const text = z.string().min(2);
+const texts = z.array(text).min(1);
+const level = z.object({ body: blocks, example: blocks });
 
-export const moduleTextSchema: z.ZodType<ModuleText> = z.object({
+const localeTextSchema = z.object({
+  chapters: z.record(id, z.string().min(3)),
+  scenarios: z.record(id, z.object({ title: z.string().min(3), summary: z.string().min(10) })),
   steps: z.record(
     id,
     z.object({
-      explanation: z.object({ beginner: blocks, advanced: blocks }),
-      terms: z.array(id),
-      message: id.optional(),
+      title: z.string().min(3),
+      watch: z.string().min(10),
+      explanation: z.object({ beginner: level, advanced: level }),
     }),
   ),
-  messages: z.record(
-    id,
-    z.object({
-      caption: z.string().min(3),
-      language: z.enum(["http", "sql"]),
-      lines: z.array(z.string()).min(1),
-    }),
-  ),
+  messages: z.record(id, z.string().min(3)),
   components: z.record(
     id,
     z.object({
-      name: z.string().min(2),
-      kind: z.string().min(2),
-      purpose: z.object({ beginner: z.string().min(10), advanced: z.string().min(10) }),
-      howItWorks: z.string().min(10),
-      responsibilities: nonEmpty,
-      inputs: nonEmpty,
-      outputs: nonEmpty,
-      talksTo: nonEmpty,
-      technologies: nonEmpty,
-      examples: nonEmpty,
-      advantages: nonEmpty,
-      limitations: nonEmpty,
+      name: text,
+      kind: text,
+      beginner: z.object({ summary: z.string().min(10), analogy: z.string().min(10), jobs: texts }),
+      advanced: z.object({
+        summary: z.string().min(10),
+        howItWorks: z.string().min(10),
+        responsibilities: texts,
+        inputs: texts,
+        outputs: texts,
+        technologies: texts,
+        examples: texts,
+        advantages: texts,
+        limitations: texts,
+      }),
+      talksTo: texts,
     }),
   ),
   glossary: z.record(
     z.string().regex(/^[a-z0-9-]+$/),
-    z.object({ term: z.string().min(2), definition: z.string().min(10) }),
+    z.object({ term: text, definition: z.string().min(10) }),
   ),
+});
+
+export const moduleTextSchema: z.ZodType<ModuleText> = z.object({
+  steps: z.record(id, z.object({ terms: z.array(z.string()), message: id.optional() })),
+  messages: z.record(
+    id,
+    z.object({ language: z.enum(["http", "sql"]), lines: z.array(z.string()).min(1) }),
+  ),
+  locales: z.object({ en: localeTextSchema, si: localeTextSchema }),
 });

@@ -82,13 +82,13 @@ test.describe("local progress", () => {
   test("remembers the explanation level and panel layout", async ({ page }) => {
     await page.goto("/learn/api-gateway");
     await page.getByRole("button", { name: "Advanced", exact: true }).click();
-    await page.getByRole("button", { name: "Hide inspector" }).click();
-    await expect(page.getByRole("complementary", { name: "Learning inspector" })).toBeHidden();
+    await page.getByRole("button", { name: "Hide explanation" }).click();
+    await expect(page.getByRole("complementary", { name: "Explanation" })).toBeHidden();
 
     await page.reload();
 
-    await expect(page.getByRole("button", { name: "Show inspector" })).toBeVisible();
-    await page.getByRole("button", { name: "Show inspector" }).click();
+    await expect(page.getByRole("button", { name: "Show explanation" })).toBeVisible();
+    await page.getByRole("button", { name: "Show explanation" }).click();
     await expect(page.getByRole("button", { name: "Advanced", exact: true })).toHaveAttribute(
       "aria-pressed",
       "true",

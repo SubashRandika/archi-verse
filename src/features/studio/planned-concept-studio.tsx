@@ -23,7 +23,7 @@ function UnbuiltBlock() {
  * Studio for a concept without a learning module yet: what the concept is, where it belongs
  * in the roadmap, and an honest note that its visualization is planned.
  */
-export function PlannedConceptStudio() {
+export function PlannedConceptStudio({ summary }: { summary: string }) {
   const { concept } = useCurrentConcept();
   const firstModule = getConcept(DEFAULT_CONCEPT_ID);
   const categoryTitles = concept.categoryIds.flatMap((id) => getCategory(id)?.title ?? []);
@@ -36,7 +36,7 @@ export function PlannedConceptStudio() {
           <div className="flex min-h-full items-center justify-center px-6 py-12">
             <article className="flex max-w-lg flex-col items-start gap-5">
               <UnbuiltBlock />
-              <p className="text-reading text-paper">{concept.summary}</p>
+              <p className="text-reading text-paper">{summary}</p>
 
               <dl className="flex flex-col gap-1 text-caption">
                 <dt className="text-graphite">
