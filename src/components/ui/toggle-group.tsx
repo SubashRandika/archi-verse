@@ -75,6 +75,11 @@ function ToggleGroupItem({
           variant: context.variant || variant,
           size: context.size || size,
         }),
+        // Archiverse: make the selected item unmistakable in the dark theme (a filled "paper"
+        // segment); unselected items recede to muted text.
+        // (`not-aria-pressed:` also keeps tailwind-merge from dropping the colour when a caller
+        // passes a custom size class such as `text-caption`.)
+        "not-aria-pressed:text-muted-foreground not-aria-pressed:hover:text-foreground aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90 aria-pressed:hover:text-primary-foreground",
         className,
       )}
       {...props}
