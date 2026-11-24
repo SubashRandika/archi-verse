@@ -1,16 +1,19 @@
+import { Sidebar } from "@/features/explorer/sidebar";
+import { InspectorPanel } from "@/features/inspector/inspector-panel";
+import { AppShell } from "@/features/shell/app-shell";
+import { Studio } from "@/features/studio/studio";
+import { StudioPreviewProvider } from "@/features/studio/studio-preview-context";
+
 /**
- * Phase 1 placeholder. Replaced by the application shell in Phase 2.
+ * Phase 2: the application shell with the Learning Studio for the API Gateway concept,
+ * using placeholder content. Phase 3 introduces concept routing (`/learn/[conceptSlug]`).
  */
 export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-      <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">
-        Phase 1 · Project foundation
-      </p>
-      <h1 className="text-3xl font-semibold tracking-tight">Archiverse</h1>
-      <p className="max-w-md text-sm text-muted-foreground">
-        Interactive 3D isometric system design learning platform.
-      </p>
-    </main>
+    <StudioPreviewProvider>
+      <AppShell sidebar={<Sidebar />} inspector={<InspectorPanel />}>
+        <Studio />
+      </AppShell>
+    </StudioPreviewProvider>
   );
 }

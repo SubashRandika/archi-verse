@@ -56,6 +56,9 @@ limit → Validate → Route) · Orders Service ×2 · Users Service · PostgreS
 
 ## UI/UX direction
 
+> Superseded in Phase 2 by [ADR-0007](./adr/0007-drafting-plate-design-system.md) (ink-blue
+> "drafting plate", IBM Plex). Layout and semantic colours below still apply.
+
 Dark graphite-blue developer instrument. Semantic colour: cyan = request, emerald = response,
 amber = warning/throttle, rose = error, violet = selection. Geist Sans for UI, Geist Mono for
 technical data. Layout: collapsible left sidebar (~280px) · central isometric canvas · resizable

@@ -4,41 +4,141 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Archiverse design tokens — "drafting plate" system (ADR-0007).
+ *
+ * Archiverse is dark-only, so tokens are defined once on :root.
+ * - Chrome (sidebar, inspector, dock) is quiet: hull + paper + graphite, no accent colour.
+ * - The canvas ("plate") is ink: the brightest dark surface, so the stage reads first.
+ * - Flow colours carry meaning only (request, response, warning, error, selection) and are
+ *   never used for decoration.
+ */
+:root {
+  /* Base palette */
+  --hull: #0c1420;
+  --hull-raised: #121c2b;
+  --hull-hover: #172437;
+  --ink: #0f1b2d;
+  --rule: #1d3150;
+  --rule-strong: #2b4467;
+  --paper: #e3e9f2;
+  --graphite: #8a97ac;
+
+  /* Semantic flow colours */
+  --flow-request: #4cc9f0;
+  --flow-response: #3dd68c;
+  --flow-warning: #f5b83d;
+  --flow-error: #f2577a;
+  --flow-selection: #a78bfa;
+
+  /* shadcn/ui semantic mapping */
+  --background: var(--hull);
+  --foreground: var(--paper);
+  --card: var(--hull-raised);
+  --card-foreground: var(--paper);
+  --popover: var(--hull-raised);
+  --popover-foreground: var(--paper);
+  --primary: var(--paper);
+  --primary-foreground: var(--hull);
+  --secondary: var(--hull-hover);
+  --secondary-foreground: var(--paper);
+  --muted: var(--hull-raised);
+  --muted-foreground: var(--graphite);
+  --accent: var(--hull-hover);
+  --accent-foreground: var(--paper);
+  --destructive: var(--flow-error);
+  --border: var(--rule);
+  --input: var(--rule-strong);
+  --ring: var(--flow-selection);
+  --radius: 0.375rem;
+
+  --sidebar: var(--hull);
+  --sidebar-foreground: var(--paper);
+  --sidebar-primary: var(--paper);
+  --sidebar-primary-foreground: var(--hull);
+  --sidebar-accent: var(--hull-hover);
+  --sidebar-accent-foreground: var(--paper);
+  --sidebar-border: var(--rule);
+  --sidebar-ring: var(--flow-selection);
+
+  --chart-1: var(--flow-request);
+  --chart-2: var(--flow-response);
+  --chart-3: var(--flow-warning);
+  --chart-4: var(--flow-error);
+  --chart-5: var(--flow-selection);
+
+  color-scheme: dark;
+}
+
 @theme inline {
+  /* Fonts (loaded with next/font in app/layout.tsx) */
+  --font-sans: var(--font-plex-sans);
+  --font-heading: var(--font-plex-sans);
+  --font-condensed: var(--font-plex-condensed);
+  --font-mono: var(--font-plex-mono);
+
+  /* Type scale: 12 / 13 / 14 / 15 (reading) / 20 / 28 */
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.125rem;
+  --text-ui: 0.875rem;
+  --text-ui--line-height: 1.25rem;
+  --text-reading: 0.9375rem;
+  --text-reading--line-height: 1.6;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-display: 1.75rem;
+  --text-display--line-height: 2.125rem;
+
+  /* Palette as Tailwind colours */
+  --color-hull: var(--hull);
+  --color-hull-raised: var(--hull-raised);
+  --color-hull-hover: var(--hull-hover);
+  --color-ink: var(--ink);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-paper: var(--paper);
+  --color-graphite: var(--graphite);
+  --color-flow-request: var(--flow-request);
+  --color-flow-response: var(--flow-response);
+  --color-flow-warning: var(--flow-warning);
+  --color-flow-error: var(--flow-error);
+  --color-flow-selection: var(--flow-selection);
+
+  /* shadcn/ui colours */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,83 +148,32 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    @apply bg-background font-sans text-foreground;
+  }
+  body {
+    @apply bg-background text-ui text-foreground;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--flow-selection) 40%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--flow-selection);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

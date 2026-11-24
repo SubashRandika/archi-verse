@@ -3,7 +3,7 @@
 A personal learning platform for software architecture and system design, built around
 interactive, guided **3D isometric** visualizations.
 
-> Status: **Phase 1 — project foundation.** See [`docs/phase-0-plan.md`](docs/phase-0-plan.md) for
+> Status: **Phase 2 — application shell** with placeholder content. See [`docs/phase-0-plan.md`](docs/phase-0-plan.md) for
 > the approved roadmap.
 
 ## Requirements

@@ -16,6 +16,15 @@
 - **Styling**: Tailwind utility classes + design tokens defined as CSS variables in
   `src/app/globals.css`. Compose classes with `cn()`. No hard-coded colours in components.
 - **UI primitives** come from shadcn/ui (`npx shadcn add <name>`) into `src/components/ui/`.
+  They are built on **Base UI**: compose with the `render` prop (not Radix's `asChild`).
+- **Icon-only buttons** always use `IconButton` (`src/components/icon-button.tsx`), which
+  guarantees an accessible name and a matching tooltip.
+- **Colour** comes from the design tokens in ADR-0007 (`bg-hull`, `text-graphite`,
+  `text-flow-request`, …). Flow colours carry meaning only — never use them for decoration.
+- **Copy**: sentence case, plain verbs, no all-caps labels. Errors and empty states say what
+  happened and what to do next.
+- **Responsive overlays inside the plate** use container queries (`@3xl:` etc.), not viewport
+  breakpoints, because the plate width depends on panel sizes.
 - **No premature abstraction.** Extract a reusable piece when the second real use appears.
 
 ## Formatting & linting
