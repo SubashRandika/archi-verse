@@ -14,6 +14,7 @@ export type Vec3 = readonly [x: number, y: number, z: number];
 /** Shapes the engine knows how to draw. New kinds are added when a module needs them. */
 export const COMPONENT_KINDS = [
   "client",
+  "mobile",
   "gateway",
   "service",
   "database",

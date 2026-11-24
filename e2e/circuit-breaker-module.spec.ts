@@ -19,13 +19,6 @@ async function openModule(page: Page) {
   await expect(page.locator("[data-scene-stage] canvas")).toBeVisible();
 }
 
-async function playToEnd(page: Page) {
-  await page.getByRole("button", { name: /^(Play|Replay step)$/ }).click();
-  await expect(page.getByRole("button", { name: /^(Play|Replay step)$/ })).toBeVisible({
-    timeout: 20_000,
-  });
-}
-
 test.describe("Circuit Breaker module", () => {
   test("walks the eight steps of the main path in three chapters", async ({ page }) => {
     await openModule(page);
@@ -42,8 +35,9 @@ test.describe("Circuit Breaker module", () => {
   test("shows the breaker's state as a badge, in the learner's language", async ({ page }) => {
     await openModule(page);
     await timeline(page).getByRole("button", { name: "Step 5: The breaker trips" }).click();
-    await playToEnd(page);
-    await expect(sceneLabels(page)).toContainText("open · 30 s");
+    // Choosing a step plays it; the badge appears when the breaker trips.
+    await expect(sceneLabels(page)).toContainText("open · 30 s", { timeout: 20_000 });
+    await expect(currentStep(page)).toHaveAccessibleName("Step 5: The breaker trips");
 
     await page.getByRole("button", { name: "සිංහල", exact: true }).click();
     await expect(sceneLabels(page)).toContainText("open · තත්. 30");

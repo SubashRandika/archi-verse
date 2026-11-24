@@ -22,6 +22,7 @@ const PAGES = {
   "/ (resume)": "index.html",
   "/learn/api-gateway (module)": "learn/api-gateway.html",
   "/learn/circuit-breaker (module)": "learn/circuit-breaker.html",
+  "/learn/backend-for-frontend (module)": "learn/backend-for-frontend.html",
   "/learn/cap-theorem (planned)": "learn/cap-theorem.html",
 };
 

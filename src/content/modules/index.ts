@@ -1,4 +1,5 @@
 import { apiGatewayModule } from "./api-gateway/structure";
+import { backendForFrontendModule } from "./backend-for-frontend/structure";
 import { circuitBreakerModule } from "./circuit-breaker/structure";
 import type { LearningModule } from "./types";
 
@@ -10,6 +11,7 @@ export type * from "./types";
  */
 export const modules: Readonly<Record<string, LearningModule>> = {
   [apiGatewayModule.id]: apiGatewayModule,
+  [backendForFrontendModule.id]: backendForFrontendModule,
   [circuitBreakerModule.id]: circuitBreakerModule,
 };
 

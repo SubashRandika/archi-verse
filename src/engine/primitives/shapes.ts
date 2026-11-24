@@ -45,6 +45,14 @@ export const SHAPES: Readonly<Record<ComponentKind, readonly ShapePart[]>> = {
     box([1.55, 0.78, 0.02], [0, 0.6, -0.55]),
     box([1.55, 0.12, 0.02], [0, 1.1, -0.55]),
   ],
+  // A phone in a dock: an upright slab with a screen and a speaker slot facing the viewer (+z),
+  // in the same style as the laptop.
+  mobile: [
+    box([0.95, 0.12, 0.7], [0, 0.06, 0]),
+    box([0.8, 1.45, 0.1], [0, 0.845, -0.1]),
+    box([0.66, 1.18, 0.02], [0, 0.85, -0.04]),
+    box([0.22, 0.05, 0.02], [0, 1.5, -0.04]),
+  ],
   // A stepped plinth: a gate at the back (the single way in), the check stations in front.
   gateway: [
     box([2.2, 0.5, 1.8], [0, 0.25, 0]),

@@ -91,10 +91,11 @@ describe("filterCatalog", () => {
     expect(new Set(shown.map((concept) => concept.moduleId))).toEqual(
       new Set(Object.keys(modules)),
     );
-    expect(titles({ ...NO_FILTER, withVisualizationOnly: true })).toContainEqual({
-      category: "backend-distributed-systems",
-      concepts: ["api-gateway"],
-    });
+    // A concept listed in two categories shows in both.
+    const backend = titles({ ...NO_FILTER, withVisualizationOnly: true }).find(
+      (match) => match.category === "backend-distributed-systems",
+    );
+    expect(backend?.concepts).toContain("api-gateway");
   });
 
   it("returns nothing when nothing matches", () => {

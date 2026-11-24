@@ -46,6 +46,7 @@ export const apiCommunication: CategoryDefinition = {
     {
       id: "backend-for-frontend",
       title: "Backend for Frontend (BFF)",
+      moduleId: "backend-for-frontend",
       keywords: ["BFF"],
     },
     {
