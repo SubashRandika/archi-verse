@@ -21,6 +21,7 @@ const BUDGET_KB = { shell: 333, threeChunk: 300 };
 const PAGES = {
   "/ (resume)": "index.html",
   "/learn/api-gateway (module)": "learn/api-gateway.html",
+  "/learn/circuit-breaker (module)": "learn/circuit-breaker.html",
   "/learn/cap-theorem (planned)": "learn/cap-theorem.html",
 };
 

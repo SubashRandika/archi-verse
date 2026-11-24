@@ -113,7 +113,7 @@ describe("InspectorPanel", () => {
     const user = userEvent.setup();
     renderInStudio(inspector(), { initialStepIndex: 11 });
     const finish = screen.getByRole("region", {
-      name: "You’ve followed a request from start to finish",
+      name: "You’ve reached the end of the main path",
     });
 
     await user.click(within(finish).getByRole("button", { name: /^Completed/ }));

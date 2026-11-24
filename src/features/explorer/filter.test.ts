@@ -1,5 +1,6 @@
 import { categories } from "@/content/catalog";
 import { conceptSummaries } from "@/content/catalog/summaries";
+import { modules } from "@/content/modules";
 import type { ProgressRecords } from "@/features/progress/progress-store";
 import { filterCatalog, isFiltering, NO_FILTER } from "./filter";
 
@@ -83,10 +84,17 @@ describe("filterCatalog", () => {
   });
 
   it("filters to concepts with a visualization", () => {
-    expect(titles({ ...NO_FILTER, withVisualizationOnly: true })).toEqual([
-      { category: "api-communication", concepts: ["api-gateway"] },
-      { category: "backend-distributed-systems", concepts: ["api-gateway"] },
-    ]);
+    const result = filterCatalog({ ...NO_FILTER, withVisualizationOnly: true }, records);
+    const shown = result.flatMap((match) => match.concepts);
+    // Only concepts with a module, and every one of them, in each category that lists it.
+    expect(shown.every((concept) => concept.moduleId)).toBe(true);
+    expect(new Set(shown.map((concept) => concept.moduleId))).toEqual(
+      new Set(Object.keys(modules)),
+    );
+    expect(titles({ ...NO_FILTER, withVisualizationOnly: true })).toContainEqual({
+      category: "backend-distributed-systems",
+      concepts: ["api-gateway"],
+    });
   });
 
   it("returns nothing when nothing matches", () => {

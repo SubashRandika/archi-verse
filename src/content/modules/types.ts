@@ -93,7 +93,8 @@ export interface StepLinks {
 
 /** The code of a message a packet carries (the same in every language). */
 export interface MessageCode {
-  readonly language: "http" | "sql";
+  /** `text` for what is not a wire message, e.g. a timeout or a rejected call in a log. */
+  readonly language: "http" | "sql" | "text";
   readonly lines: readonly string[];
 }
 

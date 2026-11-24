@@ -112,6 +112,8 @@ export interface BurstOptions {
   /** Travel time of each packet. */
   readonly travel?: number;
   readonly message?: string;
+  /** Travel the connection backwards (a burst of replies). */
+  readonly back?: boolean;
   /** A beat to play as packet `index` (0-based) arrives, e.g. a counter badge. */
   readonly onArrive?: (index: number) => Beat | undefined;
 }
@@ -124,12 +126,13 @@ export function burst({
   every = 0.3,
   travel = 1,
   message,
+  back,
   onArrive,
 }: BurstOptions): Beat[] {
   const events: TimedBeat[] = [];
   for (let index = 0; index < count; index += 1) {
     const at = index * every;
-    events.push({ at, beat: send(connection, flow, { duration: travel, next: 0, message }) });
+    events.push({ at, beat: send(connection, flow, { duration: travel, next: 0, message, back }) });
     const arrival = onArrive?.(index);
     if (arrival) events.push({ at: at + travel, beat: arrival });
   }

@@ -89,6 +89,7 @@ export const apiCommunication: CategoryDefinition = {
     {
       id: "circuit-breaker",
       title: "Circuit Breaker",
+      moduleId: "circuit-breaker",
     },
   ],
 };

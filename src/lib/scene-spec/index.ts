@@ -18,6 +18,7 @@ export const COMPONENT_KINDS = [
   "service",
   "database",
   "identity",
+  "breaker",
   "hop",
 ] as const;
 export type ComponentKind = (typeof COMPONENT_KINDS)[number];

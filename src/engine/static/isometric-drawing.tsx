@@ -139,7 +139,16 @@ export function IsometricDrawing({ layout, focus, label, className }: IsometricD
         : [part.radius, part.height / 2, part.radius];
     return [add(center, half), add(center, [-half[0], -half[1], -half[2]])].map(project);
   });
-  const xs = [...extent.map((p) => p[0]), ...labels.map((l) => l.x)];
+  // Labels count with an estimated width (12px condensed text, about 6.5px per character).
+  const labelWidth = (text: string) => text.length * 6.5;
+  const xs = [
+    ...extent.map((p) => p[0]),
+    ...labels.flatMap(({ component, x, anchor }) =>
+      anchor === "start"
+        ? [x, x + labelWidth(component.label)]
+        : [x - labelWidth(component.label) / 2, x + labelWidth(component.label) / 2],
+    ),
+  ];
   const ys = [...extent.map((p) => p[1]), ...labels.map((l) => l.y)];
   const minX = Math.min(...xs) - PAD;
   const minY = Math.min(...ys) - PAD;

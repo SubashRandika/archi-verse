@@ -1,4 +1,5 @@
 import { apiGatewayModule } from "./api-gateway/structure";
+import { circuitBreakerModule } from "./circuit-breaker/structure";
 import type { LearningModule } from "./types";
 
 export type * from "./types";
@@ -9,6 +10,7 @@ export type * from "./types";
  */
 export const modules: Readonly<Record<string, LearningModule>> = {
   [apiGatewayModule.id]: apiGatewayModule,
+  [circuitBreakerModule.id]: circuitBreakerModule,
 };
 
 export function getModule(id: string | undefined): LearningModule | undefined {

@@ -69,6 +69,15 @@ export const SHAPES: Readonly<Record<ComponentKind, readonly ShapePart[]>> = {
     box([0.8, 1.0, 0.8], [0, 0.8, 0]),
     box([1.0, 0.12, 1.0], [0, 1.36, 0]),
   ],
+  // A switch box on a wire: plinth, body, a lever on top, and three lamps along the front
+  // (stations 0–2: closed, half-open, open).
+  breaker: [
+    box([1.3, 0.24, 1.0], [0, 0.12, 0]),
+    box([1.0, 0.5, 0.7], [0, 0.49, -0.05]),
+    box([0.12, 0.42, 0.12], [0.22, 0.95, -0.2]),
+    box([0.34, 0.1, 0.14], [0.22, 1.2, -0.2]),
+    ...Array.from({ length: 3 }, (_, i) => box([0.2, 0.16, 0.12], [-0.3 + i * 0.3, 0.6, 0.36], i)),
+  ],
   // A small router marker on the network path.
   hop: [{ geometry: "cylinder", radius: 0.24, height: 0.28, at: [0, 0.14, 0] }],
 };

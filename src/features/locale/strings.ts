@@ -76,7 +76,7 @@ const en = {
   tradeOffs: "Trade-offs",
   advantages: "Advantages",
   limitations: "Limitations",
-  finishTitle: "You’ve followed a request from start to finish",
+  finishTitle: "You’ve reached the end of the main path",
   finishText:
     "Now see what happens when something goes wrong. Each scenario is in the Scenario menu below.",
   tryScenario: (title: string) => `Try a scenario: ${title}`,
@@ -157,7 +157,7 @@ const si: StudioStrings = {
   tradeOffs: "Trade-offs",
   advantages: "වාසි",
   limitations: "සීමාවන්",
-  finishTitle: "ඔබ request එකක් මුල ඉඳන් අගට අනුගමනය කළා",
+  finishTitle: "ඔබ ප්‍රධාන මාර්ගයේ අගට ආවා",
   finishText:
     "දැන් දේවල් වැරදුණොත් මොකද වෙන්නේ කියලා බලන්න. හැම scenario එකක්ම පහළ Scenario menu එකේ තියෙනවා.",
   tryScenario: (title) => `Scenario එකක් බලන්න: ${title}`,

@@ -3,9 +3,9 @@
 A personal learning platform for software architecture and system design, built around
 interactive, guided **3D isometric** visualizations.
 
-> Status: **Phase 6 — reusable learning engine.** All 291 concepts are browsable. API Gateway is
-> a complete interactive module: 12 guided steps, 4 failure scenarios, beginner and advanced
-> explanations, in English and Sinhala. New modules start from `npm run new:module` (see
+> Status: **Phase 7 — one concept at a time.** All 291 concepts are browsable. Two are complete
+> interactive modules, with beginner and advanced explanations in English and Sinhala: API
+> Gateway (12 steps, 4 scenarios) and Circuit Breaker (8 steps, 2 scenarios). New modules start from `npm run new:module` (see
 > [Adding a concept](docs/adding-a-concept.md)). The approved roadmap is in
 > [`docs/phase-0-plan.md`](docs/phase-0-plan.md).
 
@@ -50,3 +50,5 @@ Append `?perf` to a module URL (e.g. `/learn/api-gateway?perf`) to show frame ra
 - [Adding a concept](docs/adding-a-concept.md) — the checklist for a new learning module
 - [API Gateway module](docs/modules/api-gateway.md) — objectives and scene notes; its text in
   both languages is in [api-gateway.text.md](docs/modules/api-gateway.text.md)
+- [Circuit Breaker module](docs/modules/circuit-breaker.md) — objectives and scene notes; text in
+  [circuit-breaker.text.md](docs/modules/circuit-breaker.text.md)

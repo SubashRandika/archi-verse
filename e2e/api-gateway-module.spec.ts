@@ -115,7 +115,7 @@ test.describe("API Gateway module", () => {
     await openModule(page);
     await timeline(page).getByRole("button", { name: "Step 12: The full lifecycle" }).click();
     const finish = explanation(page).getByRole("region", {
-      name: "You’ve followed a request from start to finish",
+      name: "You’ve reached the end of the main path",
     });
     await finish.getByRole("button", { name: /^Completed/ }).click();
 

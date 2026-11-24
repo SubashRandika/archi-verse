@@ -159,7 +159,7 @@ export const moduleTextSchema: z.ZodType<ModuleText> = z.object({
   steps: z.record(id, z.object({ terms: z.array(z.string()), message: id.optional() })),
   messages: z.record(
     id,
-    z.object({ language: z.enum(["http", "sql"]), lines: z.array(z.string()).min(1) }),
+    z.object({ language: z.enum(["http", "sql", "text"]), lines: z.array(z.string()).min(1) }),
   ),
   locales: z.object({ en: localeTextSchema, si: localeTextSchema }),
 });

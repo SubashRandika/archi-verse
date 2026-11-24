@@ -1,5 +1,6 @@
 import { LOCALES, type Locale } from "@/lib/locale";
 import { apiGatewayText } from "./api-gateway/text";
+import { circuitBreakerText } from "./circuit-breaker/text";
 import type { LocaleText, ModuleLabels, ModuleText } from "./types";
 
 /**
@@ -9,6 +10,7 @@ import type { LocaleText, ModuleLabels, ModuleText } from "./types";
  */
 const texts: Readonly<Record<string, ModuleText>> = {
   "api-gateway": apiGatewayText,
+  "circuit-breaker": circuitBreakerText,
 };
 
 export function getModuleText(id: string | undefined): ModuleText | undefined {
