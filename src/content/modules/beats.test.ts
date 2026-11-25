@@ -8,6 +8,7 @@ describe("beat builders", () => {
       flow: "response",
       reverse: true,
       stay: undefined,
+      lost: undefined,
       duration: 2,
       next: undefined,
       message: "reply",

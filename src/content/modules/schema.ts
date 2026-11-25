@@ -22,6 +22,7 @@ const beat = z.discriminatedUnion("type", [
     flow: z.enum(["request", "response", "error"]),
     reverse: z.boolean().optional(),
     stay: z.boolean().optional(),
+    lost: z.boolean().optional(),
     duration: z.number().positive().optional(),
     next: z.number().min(0).optional(),
     message: id.optional(),

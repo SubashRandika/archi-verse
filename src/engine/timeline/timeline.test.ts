@@ -169,6 +169,24 @@ describe("compileTimeline: states, stages and signals", () => {
     expect(channels.packets[0]).toMatchObject({ opacity: 1, progress: 0, flow: "error" });
   });
 
+  it("stops a lost packet halfway, then hides it", () => {
+    const { channels, timeline } = compileTimeline(layout, [
+      {
+        scene: {
+          focus: ["a"],
+          beats: [{ type: "packet", connection: "a-b", flow: "error", lost: true, duration: 1 }],
+        },
+      },
+    ]);
+    const packet = channels.packets[0]!;
+    timeline.seek(STEP_LEAD_IN + 0.999);
+    expect(packet.opacity).toBe(1);
+    expect(packet.progress).toBeCloseTo(0.5, 2);
+    timeline.seek(STEP_LEAD_IN + 1.2);
+    expect(packet.opacity).toBe(0);
+    expect(packet.progress).toBeCloseTo(0.5);
+  });
+
   it("rejects unknown stages and connections", () => {
     const step = (beat: StepScene["beats"][number]) => [{ scene: { focus: ["g"], beats: [beat] } }];
     expect(() =>

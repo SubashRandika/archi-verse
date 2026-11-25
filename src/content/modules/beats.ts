@@ -18,8 +18,10 @@ export interface SendOptions {
   readonly next?: number;
   /** Travel the connection backwards (responses). */
   readonly back?: boolean;
-  /** Stop halfway and stay (a message being examined). */
+  /** Appear at the start of the route and wait there (a message being examined). */
   readonly stay?: boolean;
+  /** Travel halfway, then vanish (a response lost on the way). */
+  readonly lost?: boolean;
 }
 
 /** A packet travelling along a connection. */
@@ -30,6 +32,7 @@ export function send(connection: string, flow: FlowKind, options: SendOptions = 
     flow,
     reverse: options.back,
     stay: options.stay,
+    lost: options.lost,
     duration: options.duration,
     next: options.next,
     message: options.message,

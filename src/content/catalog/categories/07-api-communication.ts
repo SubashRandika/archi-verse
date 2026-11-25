@@ -66,6 +66,7 @@ export const apiCommunication: CategoryDefinition = {
     {
       id: "retry-and-exponential-backoff",
       title: "Retry and Exponential Backoff",
+      moduleId: "retry-and-exponential-backoff",
       keywords: ["retry and backoff", "jitter"],
     },
     {

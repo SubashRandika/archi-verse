@@ -93,6 +93,8 @@ export const STEP_LEAD_IN = 0.3;
 /** Quiet time after the last beat, so the final state is visible before the step ends. */
 export const STEP_HOLD = 0.5;
 const GLOW_FADE = 0.25;
+/** How far along its route a lost packet gets before it vanishes. */
+const LOST_AT = 0.5;
 
 const jump = (progress: number) => (progress < 0.5 ? 0 : 1);
 
@@ -197,7 +199,10 @@ export function compileTimeline(
           };
           packets.push(packet);
           at(packet, { opacity: 1, progress: 0 }, time);
-          if (!beat.stay) timeline.to(packet, { progress: 1, duration, ease: travelEase }, time);
+          if (!beat.stay) {
+            const progress = beat.lost ? LOST_AT : 1;
+            timeline.to(packet, { progress, duration, ease: travelEase }, time);
+          }
           at(packet, { opacity: 0 }, time + duration);
           // Overlapping packets: the step still lasts until the last one arrives.
           last = Math.max(last, time + duration);

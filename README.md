@@ -3,10 +3,10 @@
 A personal learning platform for software architecture and system design, built around
 interactive, guided **3D isometric** visualizations.
 
-> Status: **Phase 7 — one concept at a time.** All 291 concepts are browsable. Three are complete
+> Status: **Phase 7 — one concept at a time.** All 291 concepts are browsable. Four are complete
 > interactive modules, with beginner and advanced explanations in English and Sinhala: API
-> Gateway (12 steps, 4 scenarios), Circuit Breaker (8 steps, 2 scenarios) and Backend for Frontend
-> (8 steps, 2 scenarios). New modules start from `npm run new:module` (see
+> Gateway (12 steps, 4 scenarios), Circuit Breaker (8 steps, 2 scenarios), Backend for Frontend
+> (8 steps, 2 scenarios) and Retry and Exponential Backoff (8 steps, 2 scenarios). New modules start from `npm run new:module` (see
 > [Adding a concept](docs/adding-a-concept.md)). The approved roadmap is in
 > [`docs/phase-0-plan.md`](docs/phase-0-plan.md).
 
@@ -55,3 +55,6 @@ Append `?perf` to a module URL (e.g. `/learn/api-gateway?perf`) to show frame ra
   [circuit-breaker.text.md](docs/modules/circuit-breaker.text.md)
 - [Backend for Frontend module](docs/modules/backend-for-frontend.md) — objectives and scene
   notes; text in [backend-for-frontend.text.md](docs/modules/backend-for-frontend.text.md)
+- [Retry and Exponential Backoff module](docs/modules/retry-and-exponential-backoff.md) —
+  objectives and scene notes; text in
+  [retry-and-exponential-backoff.text.md](docs/modules/retry-and-exponential-backoff.text.md)

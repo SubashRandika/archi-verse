@@ -105,6 +105,8 @@ export type Beat =
       readonly reverse?: boolean;
       /** Appear at the start of the route and wait there instead of travelling. */
       readonly stay?: boolean;
+      /** Travel only halfway, then vanish: a message lost on the way (e.g. a dropped response). */
+      readonly lost?: boolean;
       readonly duration?: number;
       /**
        * Seconds until the next beat starts (default: `duration`). Shorter than the duration
