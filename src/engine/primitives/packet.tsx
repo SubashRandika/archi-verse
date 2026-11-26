@@ -4,7 +4,7 @@ import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Vec3 } from "@/lib/scene-spec";
-import { SCENE_COLORS } from "../scene/palette";
+import { useScenePalette } from "../scene/palette-context";
 import type { PacketChannel } from "../timeline";
 import { useSceneResources } from "./resources";
 
@@ -26,6 +26,8 @@ export interface PacketProps {
  */
 export function Packet({ channel, route, onInspect }: PacketProps) {
   const { box, halo } = useSceneResources();
+  const palette = useScenePalette();
+  const additive = palette.additiveGlow;
   const group = useRef<THREE.Group>(null);
   const sprite = useRef<THREE.Sprite>(null);
 
@@ -41,7 +43,7 @@ export function Packet({ channel, route, onInspect }: PacketProps) {
   }, [channel.reverse, route]);
 
   const materials = useMemo(() => {
-    const colour = SCENE_COLORS[channel.flow];
+    const colour = palette[channel.flow];
     return {
       core: new THREE.MeshBasicMaterial({ color: colour, toneMapped: false }),
       halo: new THREE.SpriteMaterial({
@@ -49,12 +51,12 @@ export function Packet({ channel, route, onInspect }: PacketProps) {
         color: colour,
         transparent: true,
         opacity: 0.8,
-        blending: THREE.AdditiveBlending,
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
         depthWrite: false,
         toneMapped: false,
       }),
     };
-  }, [channel.flow, halo]);
+  }, [channel.flow, halo, palette, additive]);
   useEffect(
     () => () => {
       materials.core.dispose();

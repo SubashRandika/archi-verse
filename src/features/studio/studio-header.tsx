@@ -6,6 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getCategory } from "@/content/catalog";
 import { CompletionToggle } from "@/features/progress/completion-toggle";
 import { useStrings } from "@/features/locale/use-strings";
+import { ThemeMenu } from "@/features/preferences/theme-menu";
 import { useShell } from "@/features/shell/shell-context";
 import { useCurrentConcept } from "./current-concept";
 import type { StudioMode } from "./session-store";
@@ -39,6 +40,8 @@ export function StudioHeader() {
       {hasModule && <ModeToggle />}
 
       <CompletionToggle conceptId={concept.id} compact={shell.layout === "mobile"} />
+
+      <ThemeMenu />
 
       {shell.layout === "mobile" ? (
         <IconButton

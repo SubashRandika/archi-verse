@@ -1,6 +1,8 @@
 # ADR-0006: Stylized 3D isometric visual style (not photorealistic)
 
-- **Status:** Accepted (Phase 0 revision, 2026-11-24)
+- **Status:** Accepted (Phase 0 revision, 2026-11-24). Partly superseded by
+  [ADR-0010](./0010-glossy-toy-style-and-light-theme.md): no outline edges, and a colour per
+  component kind; the semantic flow colours keep their meaning.
 
 ## Context
 

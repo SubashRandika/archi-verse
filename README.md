@@ -9,6 +9,10 @@ interactive, guided **3D isometric** visualizations.
 > (8 steps, 2 scenarios) and Retry and Exponential Backoff (8 steps, 2 scenarios). New modules start from `npm run new:module` (see
 > [Adding a concept](docs/adding-a-concept.md)). The approved roadmap is in
 > [`docs/phase-0-plan.md`](docs/phase-0-plan.md).
+>
+> The app is dark by default, with a light theme (and a System option) in the header's theme
+> menu. Each kind of component has its own colour in the 3D scene
+> ([ADR-0010](docs/adr/0010-glossy-toy-style-and-light-theme.md)).
 
 ## Requirements
 
