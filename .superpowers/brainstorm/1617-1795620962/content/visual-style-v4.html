@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scene look options</title>
+<style>
+  :root { --bg:#0b0f17; --fg:#e6ebf3; --muted:#93a0b4; --card:#121926; --rule:#243049; --sel:#a78bfa; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; }
+  main { max-width:1280px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 22px; max-width:900px; }
+  .cards { display:flex; flex-direction:column; gap:22px; }
+  .card { background:var(--card); border:2px solid var(--rule); border-radius:12px; padding:16px; cursor:pointer; transition:border-color .15s; }
+  .card:hover { border-color:#3a4a6a; }
+  .card.selected { border-color:var(--sel); box-shadow:0 0 0 3px #a78bfa33; }
+  .head { display:flex; align-items:baseline; gap:12px; margin-bottom:10px; }
+  .letter { font-weight:700; background:#1d2740; border-radius:6px; padding:1px 9px; }
+  .head h3 { margin:0; font-size:17px; }
+  .head p { margin:0; color:var(--muted); }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .panel svg { max-height:440px; }
+  .panel { border-radius:10px; overflow:hidden; position:relative; }
+  .panel .tag { position:absolute; top:8px; left:10px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:99px; background:#0008; color:#fff; }
+  .panel svg { display:block; width:100%; height:auto; }
+  ul.notes { margin:10px 0 0; padding-left:18px; color:var(--muted); }
+  .foot { color:var(--muted); margin-top:18px; }
+  @media (max-width:900px) { .pair { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Which look should the scene components have?</h1>
+  <p class="sub">The same small scene in three directions, each in light and dark: a laptop and a phone (clients),
+    a service and a database. All three use the same, richer detail (a keyboard and a web page on the laptop, an app
+    on the phone, drive bays and lights on the service). They differ in outline, colour and finish. These are flat
+    drawings to judge the look; the real scene stays 3D, with orbit and zoom. Click the one you like best, or tell me
+    what to mix.</p>
+  <div class="cards" id="cards"></div>
+  <p class="foot">Colours are per kind of component (every database looks like a database in every module).
+    Request, response, warning and error colours stay reserved for packets, glows and badges.</p>
+</main>
+<script>
+(function () {
+  const C = Math.cos(Math.PI / 6), S = 30;
+  const pt = (x, y, z) => [(x - z) * C * S, (x + z) * 0.5 * S - y * S];
+  const f1 = (v) => v.toFixed(1);
+  const hex = (h) => { h = h.replace("#", ""); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+  const toHex = (r) => "#" + r.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+  const mix = (a, b, t) => { const A = hex(a), B = hex(b); return toHex(A.map((v, i) => v + (B[i] - v) * t)); };
+  const shade = (base, k = 1) => ({ top: mix(base, "#ffffff", 0.24 * k), left: base, right: mix(base, "#000000", 0.2 * k) });
+
+  // ---- Styles: A soft clay, B glossy toy, C drafting + colour --------------------------------
+  const STYLES = {
+    A: {
+      name: "Soft clay", blurb: "Bold dark outlines, warm pastel colours, each part on its own little tile. Friendly and very readable.",
+      notes: ["Closest in spirit to your reference, but our own palette and shapes", "Outlines keep every part crisp in both themes"],
+      light: { bg: "#f6f1e7", grid: "#e9e0cf", outline: "#2a2631", w: 2, plinth: "#fffaf1", wire: "#2a2631", text: "#2a2631",
+        kinds: { client: "#f2a07b", mobile: "#6cc6b5", service: "#93a9f2", database: "#a3d98f" },
+        screen: "#22304a", ui: "#eef3fb", uiFaint: "#5d6f8f", accent: "#ffb547", key: "#fff6ec", keyWell: "#3b3540",
+        pill: "#fffaf1", req: "#1ea7d6", res: "#23b26b", warn: "#e79a12" },
+      dark: { bg: "#151a24", grid: "#202837", outline: "#07090e", w: 2, plinth: "#283246", wire: "#6b7a96", text: "#e6ebf3",
+        kinds: { client: "#e98d66", mobile: "#4fb5a3", service: "#7a93ea", database: "#86c873" },
+        screen: "#141d2e", ui: "#e9f0fb", uiFaint: "#51607e", accent: "#ffb547", key: "#f4ebe2", keyWell: "#26222b",
+        pill: "#1d2535", req: "#4cc9f0", res: "#3dd68c", warn: "#f5b83d" },
+    },
+    B: {
+      name: "Glossy toy", blurb: "No outlines; saturated colours lit like small plastic toys, glowing screens and status lights.",
+      notes: ["The most dimensional and eye-catching", "Relies on lighting, so it needs care to stay readable when small"],
+      light: { bg: "#edf1f8", grid: "#dbe3ef", outline: null, edge: "#ffffff66", plinth: "#ffffff", wire: "#9aa9c2", text: "#1d2638",
+        kinds: { client: "#ff8f45", mobile: "#8b5cf6", service: "#3b82f6", database: "#10b981" },
+        screen: "#0f172a", ui: "#e2e8f0", uiFaint: "#334766", accent: "#38bdf8", key: "#f8fafc", keyWell: "#cbd5e1",
+        pill: "#ffffff", req: "#0ea5e9", res: "#16a34a", warn: "#d97706", glow: true },
+      dark: { bg: "#0c1220", grid: "#172138", outline: null, edge: "#ffffff22", plinth: "#1a2540", wire: "#3a4b6d", text: "#e6ebf3",
+        kinds: { client: "#ff8f45", mobile: "#8b5cf6", service: "#3b82f6", database: "#10b981" },
+        screen: "#070b16", ui: "#e2e8f0", uiFaint: "#2a3a58", accent: "#38bdf8", key: "#e2e8f0", keyWell: "#94a3b8",
+        pill: "#16203a", req: "#4cc9f0", res: "#3dd68c", warn: "#f5b83d", glow: true },
+    },
+    C: {
+      name: "Drafting + colour", blurb: "Today's thin-line technical look, with muted colour per kind and the same new detail.",
+      notes: ["The smallest change from what you have now", "Calm and precise; less playful than A or B"],
+      light: { bg: "#f4f7fc", grid: "#dfe6f2", outline: "#1b2a44", w: 1, plinth: null, wire: "#8796b0", text: "#1b2a44",
+        kinds: { client: "#f3d3c1", mobile: "#c8e7e0", service: "#d3def7", database: "#d3ebcf" },
+        screen: "#1b2a44", ui: "#f4f7fc", uiFaint: "#4b5d7e", accent: "#f5b83d", key: "#ffffff", keyWell: "#9fb0cb",
+        pill: "#ffffff", req: "#0ea5e9", res: "#16a34a", warn: "#d97706" },
+      dark: { bg: "#0f1b2d", grid: "#1d3150", outline: "#c9d4e6", w: 1, plinth: null, wire: "#2b4467", text: "#e3e9f2",
+        kinds: { client: "#6e4b3c", mobile: "#2c5d58", service: "#2f4a7d", database: "#2f5d43" },
+        screen: "#0a1220", ui: "#e3e9f2", uiFaint: "#3b4e70", accent: "#f5b83d", key: "#c9d4e6", keyWell: "#1a2a44",
+        pill: "#13223a", req: "#4cc9f0", res: "#3dd68c", warn: "#f5b83d" },
+    },
+  };
+
+  function scene(t, id) {
+    const out = [], defs = [];
+    let O = [0, 0, 0];
+    const W = (x, y, z) => pt(x + O[0], y + O[1], z + O[2]);
+    const P = (pts) => pts.map((p) => W(...p).map(f1).join(",")).join(" ");
+    const stroke = (w) => t.outline
+      ? `stroke="${t.outline}" stroke-width="${w ?? t.w}" stroke-linejoin="round" stroke-linecap="round"`
+      : t.edge ? `stroke="${t.edge}" stroke-width="0.8" stroke-linejoin="round"` : "";
+    const quad = (pts, fill, w) => out.push(`<polygon points="${P(pts)}" fill="${fill}" ${stroke(w)}/>`);
+    const flat = (pts, fill, op = 1) => out.push(`<polygon points="${P(pts)}" fill="${fill}" opacity="${op}"/>`);
+    const box = (x0, y0, z0, x1, y1, z1, c, w) => {
+      const s = typeof c === "string" ? shade(c) : c;
+      quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], s.left, w);
+      quad([[x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0]], s.right, w);
+      quad([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], s.top, w);
+    };
+    const onTop = (y, x0, z0, x1, z1, fill, op) => flat([[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]], fill, op);
+    const onZ = (z, x0, y0, x1, y1, fill, op) => flat([[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], fill, op);
+    const onX = (x, z0, y0, z1, y1, fill, op) => flat([[x, y0, z0], [x, y0, z1], [x, y1, z1], [x, y1, z0]], fill, op);
+    const dot = (x, y, z, r, fill, glow) => {
+      const [cx, cy] = W(x, y, z);
+      if (glow) out.push(`<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${r * 2.6}" fill="${fill}" opacity="0.28"/>`);
+      out.push(`<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${r}" fill="${fill}"/>`);
+    };
+    const shadow = (rx, rz) => {
+      const [cx, cy] = W(0, 0.001, 0);
+      out.push(`<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx * C * S * 1.4)}" ry="${f1(rz * 0.5 * S * 1.4)}" fill="#000" opacity="0.13"/>`);
+    };
+    const plinth = (r) => {
+      if (!t.plinth) { shadow(r, r); return; }
+      box(-r, -0.16, -r, r, 0, r, shade(t.plinth, 0.6), t.outline ? t.w : undefined);
+      shadow(r * 0.8, r * 0.8);
+    };
+    let gid = 0;
+    const cylinder = (y0, r, h, base) => {
+      const g = `${id}-g${gid++}`;
+      const s = shade(base);
+      defs.push(`<linearGradient id="${g}" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${mix(base, "#ffffff", 0.08)}"/><stop offset="0.45" stop-color="${base}"/><stop offset="1" stop-color="${s.right}"/></linearGradient>`);
+      const [bx, by] = W(0, y0, 0), [, ty] = W(0, y0 + h, 0);
+      const rx = r * C * S * Math.SQRT2, ry = r * 0.5 * S * Math.SQRT2;
+      out.push(`<path d="M${f1(bx - rx)},${f1(ty)} L${f1(bx - rx)},${f1(by)} A${f1(rx)},${f1(ry)} 0 0 0 ${f1(bx + rx)},${f1(by)} L${f1(bx + rx)},${f1(ty)} Z" fill="url(#${g})" ${stroke()}/>`);
+      // a lighter band near the top of the side
+      out.push(`<path d="M${f1(bx - rx)},${f1(ty + 5)} A${f1(rx)},${f1(ry)} 0 0 0 ${f1(bx + rx)},${f1(ty + 5)}" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2"/>`);
+      out.push(`<ellipse cx="${f1(bx)}" cy="${f1(ty)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="${s.top}" ${stroke()}/>`);
+      return { bx, ty, rx, ry };
+    };
+
+    // ---- Components ------------------------------------------------------------------------
+    const laptop = () => {
+      const k = t.kinds.client;
+      plinth(1.35);
+      box(-1, 0.12, -0.82, 1, 1.55, -0.72, mix(k, "#000000", 0.06));               // lid
+      onZ(-0.719, -0.9, 0.26, 0.9, 1.45, t.screen);                                  // screen
+      onZ(-0.718, -0.9, 1.32, 0.9, 1.45, mix(t.screen, "#ffffff", 0.14));            // browser bar
+      ["#ff6b6b", "#ffc145", "#4fd18b"].forEach((c, i) => dot(-0.8 + i * 0.09, 1.385, -0.717, 1.7, c));
+      onZ(-0.718, -0.5, 1.355, 0.55, 1.415, t.uiFaint);                              // address bar
+      onZ(-0.718, -0.8, 1.06, -0.05, 1.2, t.ui, 0.9);                                 // heading
+      onZ(-0.718, -0.8, 0.92, 0.35, 0.99, t.uiFaint);                                 // text lines
+      onZ(-0.718, -0.8, 0.8, 0.15, 0.87, t.uiFaint);
+      onZ(-0.718, -0.8, 0.36, 0.1, 0.7, mix(t.screen, "#ffffff", 0.1));               // card
+      onZ(-0.718, 0.3, 0.4, 0.8, 0.58, t.accent);                                     // Pay button
+      if (t.glow) onZ(-0.717, -0.9, 0.26, 0.9, 1.45, t.accent, 0.06);
+      dot(0, 1.5, -0.717, 1.2, "#0006");                                              // webcam
+      box(-1, 0, -0.72, 1, 0.12, 0.72, k);                                            // base
+      onTop(0.121, -0.88, -0.62, 0.88, 0.14, t.keyWell);                              // keyboard well
+      const cols = 13, rows = 5, kw = 1.76 / cols, kd = 0.76 / rows;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        if (r === rows - 1 && c > 3 && c < 9) continue;
+        onTop(0.122, -0.88 + c * kw + 0.018, -0.62 + r * kd + 0.018, -0.88 + (c + 1) * kw - 0.018, -0.62 + (r + 1) * kd - 0.018, t.key);
+      }
+      onTop(0.122, -0.88 + 4 * kw + 0.018, -0.62 + 4 * kd + 0.018, -0.88 + 9 * kw - 0.018, -0.62 + 5 * kd - 0.018, t.key); // space bar
+      onTop(0.121, -0.34, 0.26, 0.34, 0.62, mix(k, "#ffffff", 0.35));                // touchpad
+    };
+    const phone = () => {
+      const k = t.kinds.mobile;
+      plinth(0.85);
+      box(-0.55, 0, -0.42, 0.55, 0.12, 0.42, mix(k, "#000000", 0.12));               // dock
+      box(-0.46, 0.12, -0.2, 0.46, 1.78, -0.04, k);                                   // body
+      const z = -0.039;
+      onZ(z, -0.4, 0.2, 0.4, 1.7, t.screen);
+      onZ(z + 0.001, -0.11, 1.62, 0.11, 1.67, "#000000");                              // notch
+      onZ(z + 0.001, -0.33, 1.42, 0.05, 1.5, t.uiFaint);                               // header
+      onZ(z + 0.001, -0.33, 1.15, 0.26, 1.32, t.ui, 0.95);                             // amount
+      onZ(z + 0.001, -0.33, 0.72, 0.33, 1.04, mix(t.screen, "#ffffff", 0.12));         // card
+      onZ(z + 0.001, -0.27, 0.92, 0.1, 0.97, t.uiFaint);
+      onZ(z + 0.001, -0.33, 0.3, 0.33, 0.48, t.accent);                                // Pay button
+      if (t.glow) onZ(z + 0.002, -0.4, 0.2, 0.4, 1.7, t.accent, 0.07);
+    };
+    const service = () => {
+      const k = t.kinds.service;
+      plinth(1.15);
+      for (let i = 0; i < 3; i++) {
+        const y = i * 0.56;
+        box(-0.82, y, -0.82, 0.82, y + 0.5, 0.82, k);
+        for (let b = 0; b < 4; b++) {
+          const x = -0.72 + b * 0.27;
+          onZ(0.821, x, y + 0.1, x + 0.22, y + 0.4, mix(k, "#000000", 0.35));         // drive bay
+          onZ(0.822, x + 0.03, y + 0.14, x + 0.19, y + 0.17, mix(k, "#ffffff", 0.3));
+        }
+        dot(0.48, y + 0.25, 0.822, 2.1, i === 1 ? t.warn : t.res, t.glow);
+        dot(0.64, y + 0.25, 0.822, 2.1, t.res, t.glow);
+        for (let v = 0; v < 5; v++) onX(0.821, -0.6 + v * 0.25, y + 0.14, -0.48 + v * 0.25, y + 0.36, mix(k, "#000000", 0.32)); // vents
+      }
+      const top = 1.62;
+      onTop(top + 0.001, -0.5, -0.32, 0.5, 0.32, mix(k, "#ffffff", 0.55));            // card icon
+      onTop(top + 0.002, -0.5, -0.2, 0.5, -0.08, mix(k, "#000000", 0.35));
+      onTop(top + 0.002, 0.18, 0.1, 0.4, 0.22, t.accent);
+    };
+    const database = () => {
+      const k = t.kinds.database;
+      plinth(1.2);
+      for (let i = 0; i < 3; i++) {
+        const y = i * 0.5;
+        const c = cylinder(y, 0.88, 0.44, k);
+        const fx = 0.88 / Math.SQRT2;
+        dot(fx, y + 0.2, fx, 2.1, i === 2 ? t.req : t.res, t.glow);
+        if (i === 2) {
+          out.push(`<ellipse cx="${f1(c.bx)}" cy="${f1(c.ty)}" rx="${f1(c.rx * 0.42)}" ry="${f1(c.ry * 0.42)}" fill="${mix(k, "#000000", 0.25)}"/>`);
+          out.push(`<ellipse cx="${f1(c.bx)}" cy="${f1(c.ty - 2)}" rx="${f1(c.rx * 0.42)}" ry="${f1(c.ry * 0.42)}" fill="${mix(k, "#ffffff", 0.45)}"/>`);
+        }
+      }
+    };
+
+    // ---- Layout -----------------------------------------------------------------------------
+    const items = [
+      { at: [-4.7, 0, -0.5], draw: laptop, label: "Shopper A", top: 2.75, badge: ["attempt 2 · wait 1 s", "warn"] },
+      { at: [-1.5, 0, 5.0], draw: phone, label: "Shopper B", top: 2.15, badge: ["paid", "plain"] },
+      { at: [0, 0, 0], draw: service, label: "Payments", top: 2.85, badge: ["ready", "plain"] },
+      { at: [3.3, 0, -3.3], draw: database, label: "Payments DB", top: 2.45, badge: ["charged once", "plain"] },
+    ];
+    // grid
+    const g0 = [];
+    for (let i = -12; i <= 12; i += 1.5) {
+      const a = pt(i, 0, -12), b = pt(i, 0, 12), c = pt(-12, 0, i), d = pt(12, 0, i);
+      g0.push(`<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}"/>`, `<line x1="${f1(c[0])}" y1="${f1(c[1])}" x2="${f1(d[0])}" y2="${f1(d[1])}"/>`);
+    }
+    out.push(`<g stroke="${t.grid}" stroke-width="1">${g0.join("")}</g>`);
+    // wires and packets
+    const wire = (a, b, packet, flow) => {
+      const p = pt(a[0], 0, a[2]), q = pt(b[0], 0, b[2]);
+      out.push(`<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(q[0])}" y2="${f1(q[1])}" stroke="${t.wire}" stroke-width="${t.outline && t.w > 1 ? 3 : 2}" stroke-linecap="round" opacity="0.8"/>`);
+      if (packet != null) {
+        const x = p[0] + (q[0] - p[0]) * packet, y = p[1] + (q[1] - p[1]) * packet - 10;
+        const col = flow === "res" ? t.res : t.req;
+        out.push(`<circle cx="${f1(x)}" cy="${f1(y)}" r="12" fill="${col}" opacity="0.25"/><circle cx="${f1(x)}" cy="${f1(y)}" r="6.5" fill="${col}" stroke="#ffffff" stroke-width="2"/>`);
+      }
+    };
+    wire(items[0].at, items[2].at, 0.35, "req");
+    wire(items[1].at, items[2].at, 0.55, "res");
+    wire(items[2].at, items[3].at, 0.5, "req");
+    // components back to front
+    [...items].sort((a, b) => a.at[0] + a.at[2] - (b.at[0] + b.at[2])).forEach((it) => { O = it.at; it.draw(); });
+    // labels and badges
+    for (const it of items) {
+      const [x, y] = pt(it.at[0], it.top + 0.2, it.at[2]);
+      out.push(`<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" font-size="12.5" font-weight="600" fill="${t.text}">${it.label}</text>`);
+      const [text, tone] = it.badge;
+      const w = text.length * 6.6 + 18, col = tone === "warn" ? t.warn : t.text;
+      out.push(`<rect x="${f1(x - w / 2)}" y="${f1(y - 34)}" width="${f1(w)}" height="21" rx="10.5" fill="${t.pill}" stroke="${col}" stroke-opacity="${tone === "warn" ? 0.9 : 0.35}" stroke-width="1.5"/>`);
+      out.push(`<text x="${f1(x)}" y="${f1(y - 19.5)}" text-anchor="middle" font-size="11.5" font-weight="600" fill="${col}">${text}</text>`);
+    }
+    return `<defs>${defs.join("")}</defs>${out.join("")}`;
+  }
+
+  const cards = document.getElementById("cards");
+  let n = 0;
+  for (const [key, style] of Object.entries(STYLES)) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.choice = key;
+    card.setAttribute("onclick", "toggleSelect(this)");
+    const panels = ["light", "dark"].map((mode) => {
+      const t = style[mode], id = `s${n++}`;
+      return `<div class="panel" style="background:${t.bg}"><span class="tag">${mode}</span><svg id="${id}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, Segoe UI, system-ui, sans-serif">${scene(t, id)}</svg></div>`;
+    });
+    card.innerHTML = `<div class="head"><span class="letter">${key}</span><h3>${style.name}</h3><p>${style.blurb}</p></div><div class="pair">${panels.join("")}</div><ul class="notes">${style.notes.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+    cards.appendChild(card);
+  }
+  // fit each drawing: crop to the components, not the whole grid
+  for (const svg of document.querySelectorAll("svg[id]")) {
+    const b = [...svg.querySelectorAll("polygon, ellipse, path, text, rect")].reduce((acc, el) => {
+      const r = el.getBBox();
+      return [Math.min(acc[0], r.x), Math.min(acc[1], r.y), Math.max(acc[2], r.x + r.width), Math.max(acc[3], r.y + r.height)];
+    }, [Infinity, Infinity, -Infinity, -Infinity]);
+    const pad = 28;
+    svg.setAttribute("viewBox", `${b[0] - pad} ${b[1] - pad} ${b[2] - b[0] + 2 * pad} ${b[3] - b[1] + 2 * pad}`);
+  }
+})();
+</script>
+</body>
+</html>
