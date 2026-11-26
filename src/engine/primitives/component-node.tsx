@@ -3,13 +3,11 @@
 import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { LineMaterial } from "three/addons/lines/LineMaterial.js";
-import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import type { ActivityTone, SceneComponent } from "@/lib/scene-spec";
-import { EDGE_OPACITY, SCENE_COLORS } from "../scene/palette";
+import { useScenePalette } from "../scene/palette-context";
 import type { ComponentChannel } from "../timeline";
-import { useSceneResources } from "./resources";
-import { SHAPES, shapeBounds, type ShapePart } from "./shapes";
+import { useKindModel, useScreenAtlas, useSceneResources } from "./resources";
+import { shapeBounds } from "./shapes";
 
 export type Emphasis = "normal" | "dimmed";
 
@@ -26,20 +24,6 @@ export interface ComponentNodeProps {
   readonly onHover?: (id: string | null) => void;
 }
 
-const color = (hex: string) => new THREE.Color(hex);
-const C = {
-  body: color(SCENE_COLORS.body),
-  bodyDimmed: color(SCENE_COLORS.bodyDimmed),
-  bodyActive: color(SCENE_COLORS.bodyActive),
-  bodyDown: color(SCENE_COLORS.bodyDown),
-  paper: color(SCENE_COLORS.paper),
-  selection: color(SCENE_COLORS.selection),
-};
-const TONE: Record<ActivityTone, THREE.Color> = {
-  active: color(SCENE_COLORS.request),
-  warning: color(SCENE_COLORS.warning),
-  error: color(SCENE_COLORS.error),
-};
 const STATUS_TONE: Record<ComponentChannel["status"], ActivityTone | null> = {
   none: null,
   info: null,
@@ -47,53 +31,33 @@ const STATUS_TONE: Record<ComponentChannel["status"], ActivityTone | null> = {
   error: "error",
   down: "error",
 };
-/** Strength of the steady glow a warning/error status keeps while set. */
+/** Strength of the steady ring a warning/error status keeps while set. */
 const STATUS_GLOW = 0.7;
-const EDGE_WIDTH = 1.1;
-const GLOW_WIDTH = 7;
-const GLOW_OPACITY = 0.2;
-const FOOTPRINT_OPACITY = 0.6;
+const RING_WIDTH = 0.1;
+const RING_OPACITY = 0.95;
+const HALO_OPACITY = 0.35;
 /** Larger is faster. ~10 settles in about 0.3 s. */
 const EASE_RATE = 10;
 const noRaycast = () => {};
 
-interface MaterialSet {
-  readonly body: THREE.MeshLambertMaterial;
-  readonly edge: LineMaterial;
-  readonly glow: LineMaterial;
+/** `target += colour × amount`, per channel. */
+function addScaled(target: THREE.Color, colour: THREE.Color, amount: number): THREE.Color {
+  target.r += colour.r * amount;
+  target.g += colour.g * amount;
+  target.b += colour.b * amount;
+  return target;
 }
 
-function createMaterialSet(): MaterialSet {
-  return {
-    body: new THREE.MeshLambertMaterial({
-      color: C.body,
-      polygonOffset: true,
-      polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1,
-    }),
-    edge: new LineMaterial({
-      linewidth: EDGE_WIDTH,
-      transparent: true,
-      opacity: EDGE_OPACITY.normal,
-    }),
-    glow: new LineMaterial({
-      linewidth: GLOW_WIDTH,
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  };
-}
-
-const disposeSet = (set: MaterialSet) =>
-  Object.values(set).forEach((material) => material.dispose());
+const glossy = () =>
+  new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 70, specular: 0x3a3a3a });
 
 /**
- * One architecture component in the scene: its shape, outline, glow and ground footprint.
- * Emphasis (dimmed, hovered, selected, busy, status) eases per frame and only requests frames
- * while a change is still settling, so an idle scene costs nothing. Stations (parts with
- * `station`) have their own materials and light up with their stage.
+ * One architecture component in the scene: its model (shared by every component of its kind),
+ * a soft footprint shadow and a glowing ring around its tile. The ring shows what the
+ * component is doing: selected, busy, or in a warning/error state. Dimmed components fade
+ * toward the background; hovered ones brighten a little. Emphasis eases per frame and only
+ * requests frames while a change is still settling, so an idle scene costs nothing. Stations
+ * (the gateway's checks, the breaker's lamps) light up in their stage's tone.
  */
 export function ComponentNode({
   component,
@@ -106,62 +70,73 @@ export function ComponentNode({
   onHover,
 }: ComponentNodeProps) {
   const resources = useSceneResources();
+  const palette = useScenePalette();
+  const model = useKindModel(component.kind);
+  const atlas = useScreenAtlas();
   const invalidate = useThree((state) => state.invalidate);
-  const shape = SHAPES[component.kind];
-  const stationCount = shape.reduce((count, part) => Math.max(count, (part.station ?? -1) + 1), 0);
+
+  const tones = useMemo(
+    () => ({
+      active: new THREE.Color(palette.request),
+      warning: new THREE.Color(palette.warning),
+      error: new THREE.Color(palette.error),
+      selection: new THREE.Color(palette.selection),
+      fade: new THREE.Color(palette.fade),
+    }),
+    [palette],
+  );
 
   const materials = useMemo(() => {
-    const footprint = new THREE.MeshBasicMaterial({
-      color: SCENE_COLORS.footprint,
-      transparent: true,
-      opacity: FOOTPRINT_OPACITY,
-      depthWrite: false,
-      map: resources.footprint,
-    });
+    const blending = palette.additiveGlow ? THREE.AdditiveBlending : THREE.NormalBlending;
     return {
-      main: createMaterialSet(),
-      stations: Array.from({ length: stationCount }, createMaterialSet),
-      footprint,
+      solid: glossy(),
+      screens: new THREE.MeshBasicMaterial({ map: atlas, toneMapped: false }),
+      lights: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
+      stations: model.stations.map(glossy),
+      ring: new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending,
+        toneMapped: false,
+      }),
+      halo: new THREE.MeshBasicMaterial({
+        map: resources.halo,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending,
+        toneMapped: false,
+      }),
+      footprint: new THREE.MeshBasicMaterial({
+        color: palette.footprint,
+        transparent: true,
+        opacity: palette.footprintOpacity,
+        depthWrite: false,
+        map: resources.footprint,
+      }),
     };
-  }, [resources, stationCount]);
+  }, [palette, atlas, model, resources]);
   useEffect(
     () => () => {
-      disposeSet(materials.main);
-      materials.stations.forEach(disposeSet);
-      materials.footprint.dispose();
+      const { stations, ...single } = materials;
+      Object.values(single).forEach((material) => material.dispose());
+      stations.forEach((material) => material.dispose());
     },
     [materials],
   );
 
-  const parts = useMemo(
-    () =>
-      shape.map((part: ShapePart) => {
-        const set = part.station === undefined ? materials.main : materials.stations[part.station]!;
-        const scale: [number, number, number] =
-          part.geometry === "box"
-            ? [part.size[0], part.size[1], part.size[2]]
-            : [part.radius, part.height, part.radius];
-        const edges = part.geometry === "box" ? resources.boxEdges : resources.cylinderEdges;
-        const outline = new LineSegments2(edges, set.edge);
-        const glow = new LineSegments2(edges, set.glow);
-        for (const line of [outline, glow]) {
-          line.position.set(...part.at);
-          line.scale.set(...scale);
-          line.raycast = noRaycast;
-        }
-        glow.visible = false;
-        return { part, set, scale, outline, glow };
-      }),
-    [shape, materials, resources],
-  );
-
-  const footprint = useMemo(() => {
-    const bounds = shapeBounds(component.kind);
+  // The ring hugs the tile: a circle just outside its corners.
+  const ground = useMemo(() => {
+    const { min, max } = shapeBounds(component.kind);
+    const half = Math.max(Math.hypot(max[0] - min[0], max[2] - min[2]) / 2, 0.3);
     return {
-      width: (bounds.max[0] - bounds.min[0]) * 1.7,
-      depth: (bounds.max[2] - bounds.min[2]) * 1.7,
+      ring: new THREE.RingGeometry(half * 0.92, half * 0.92 + RING_WIDTH, 64),
+      halo: half * 2.6,
+      footprint: { width: (max[0] - min[0]) * 1.5, depth: (max[2] - min[2]) * 1.5 },
     };
   }, [component.kind]);
+  useEffect(() => () => ground.ring.dispose(), [ground]);
 
   // Eased visual state, mutated per frame (never React state).
   const eased = useRef({
@@ -172,12 +147,14 @@ export function ComponentNode({
     down: 0,
   });
   const scratch = useMemo(
-    () => ({ glow: new THREE.Color(), body: new THREE.Color(), status: new THREE.Color() }),
+    () => ({ glow: new THREE.Color(), status: new THREE.Color(), emissive: new THREE.Color() }),
     [],
   );
+  const ringMesh = useRef<THREE.Mesh>(null);
+  const haloMesh = useRef<THREE.Mesh>(null);
 
-  // A prop change must wake the demand-driven render loop so the easing can run.
-  useEffect(() => invalidate(), [emphasis, selected, hovered, invalidate]);
+  // A prop or theme change must wake the demand-driven render loop so the easing can run.
+  useEffect(() => invalidate(), [emphasis, selected, hovered, materials, invalidate]);
 
   useFrame((_, delta) => {
     const state = eased.current;
@@ -197,50 +174,50 @@ export function ComponentNode({
     state.status = step(state.status, target.status);
     state.down = step(state.down, target.down);
 
-    // Glow: selection wins, then the busy tone, then a steady status glow.
+    // Ring: selection wins, then the busy tone, then a steady status ring.
     const activity = (channel?.activity ?? 0) * (1 - state.dim * 0.6);
+    const busyTone = tones[channel?.tone ?? "active"];
     const statusGlow = STATUS_GLOW * state.status * (1 - state.dim * 0.5);
-    if (statusTone) scratch.status.copy(TONE[statusTone]);
-    scratch.glow.copy(statusTone ? scratch.status : TONE.active);
-    if (activity > 0.02) {
-      scratch.glow.lerp(TONE[channel?.tone ?? "active"], Math.min(activity * 2, 1));
-    }
-    scratch.glow.lerp(C.selection, state.select);
+    if (statusTone) scratch.status.copy(tones[statusTone]);
+    scratch.glow.copy(statusTone ? scratch.status : tones.active);
+    if (activity > 0.02) scratch.glow.lerp(busyTone, Math.min(activity * 2, 1));
+    scratch.glow.lerp(tones.selection, state.select);
     const glow = Math.max(activity, state.select, statusGlow);
+    materials.ring.color.copy(scratch.glow);
+    materials.ring.opacity = RING_OPACITY * glow;
+    materials.halo.color.copy(scratch.glow);
+    materials.halo.opacity = HALO_OPACITY * glow;
+    if (ringMesh.current) ringMesh.current.visible = glow > 0.003;
+    if (haloMesh.current) haloMesh.current.visible = glow > 0.003;
 
-    const { main } = materials;
-    scratch.body
-      .copy(C.body)
-      .lerp(C.bodyDimmed, state.dim)
-      .lerp(C.bodyDown, state.down * 0.85)
-      .lerp(C.bodyActive, activity * (channel?.tone === "active" ? 1 : 0.3));
-    main.body.color.copy(scratch.body);
-    const baseOpacity = THREE.MathUtils.lerp(EDGE_OPACITY.normal, EDGE_OPACITY.dimmed, state.dim);
-    main.edge.color.copy(C.paper).lerp(scratch.glow, glow);
-    main.edge.opacity = Math.max(
-      baseOpacity,
-      EDGE_OPACITY.hovered * state.hover,
-      EDGE_OPACITY.glowing * glow,
-    );
-    main.edge.linewidth = EDGE_WIDTH + 0.5 * glow;
-    main.glow.color.copy(scratch.glow);
-    main.glow.opacity = GLOW_OPACITY * glow;
+    // Body: fade toward the background when dimmed, darken when down, brighten when busy
+    // or hovered.
+    const shade = (1 - palette.dimFade * state.dim) * (1 - 0.45 * state.down);
+    materials.solid.color.setScalar(shade);
+    addScaled(
+      scratch.emissive.copy(tones.fade).multiplyScalar(palette.dimFade * state.dim),
+      busyTone,
+      0.22 * activity,
+    ).addScalar(0.06 * state.hover);
+    materials.solid.emissive.copy(scratch.emissive);
+    const glowShade = (1 - 0.6 * state.dim) * (1 - state.down);
+    materials.screens.color.setScalar(glowShade);
+    materials.lights.color.setScalar(glowShade);
 
-    // Stations follow the component, and light up on their own while their stage is busy.
+    // Stations follow the body, and light up on their own while their stage is busy.
     const stageIds = component.stages ?? [];
-    materials.stations.forEach((set, index) => {
+    model.stations.forEach(({ index }, i) => {
+      const material = materials.stations[i]!;
       const stage = channel?.stages[stageIds[index]?.id ?? ""];
       const busy = (stage?.activity ?? 0) * (1 - state.dim * 0.6);
-      const tone = TONE[stage?.tone ?? "active"];
-      set.body.color.copy(scratch.body).lerp(tone, busy * 0.55);
-      set.edge.color.copy(main.edge.color).lerp(tone, busy);
-      set.edge.opacity = Math.max(main.edge.opacity, busy);
-      set.edge.linewidth = EDGE_WIDTH + 0.5 * Math.max(glow, busy);
-      set.glow.color.copy(busy > 0.02 ? tone : scratch.glow);
-      set.glow.opacity = GLOW_OPACITY * Math.max(glow, busy * 1.3);
+      material.color.setScalar(shade);
+      addScaled(
+        material.emissive.copy(scratch.emissive),
+        tones[stage?.tone ?? "active"],
+        0.6 * busy,
+      );
     });
-    for (const { glow: line, set } of parts) line.visible = set.glow.opacity > 0.003;
-    materials.footprint.opacity = FOOTPRINT_OPACITY * (1 - 0.5 * state.dim);
+    materials.footprint.opacity = palette.footprintOpacity * (1 - 0.5 * state.dim);
 
     const settled = (Object.keys(target) as (keyof typeof target)[]).every(
       (key) => Math.abs(state[key] - target[key]) < 0.002,
@@ -248,9 +225,8 @@ export function ComponentNode({
     if (!settled) invalidate();
   });
 
-  const geometryOf = (part: ShapePart) =>
-    part.geometry === "box" ? resources.box : resources.cylinder;
   const interactive = !component.decorative;
+  const raycast = interactive ? undefined : noRaycast;
 
   return (
     <group
@@ -278,23 +254,41 @@ export function ComponentNode({
         geometry={resources.plane}
         material={materials.footprint}
         rotation-x={-Math.PI / 2}
-        position-y={0.01}
-        scale={[footprint.width, footprint.depth, 1]}
+        position-y={0.005}
+        scale={[ground.footprint.width, ground.footprint.depth, 1]}
         renderOrder={1}
         raycast={noRaycast}
       />
-      {parts.map(({ part, set, scale, outline, glow }, index) => (
-        <group key={index}>
-          <mesh
-            geometry={geometryOf(part)}
-            material={set.body}
-            position={part.at as [number, number, number]}
-            scale={scale}
-            raycast={interactive ? undefined : noRaycast}
-          />
-          <primitive object={outline} />
-          <primitive object={glow} />
-        </group>
+      <mesh
+        ref={haloMesh}
+        geometry={resources.plane}
+        material={materials.halo}
+        rotation-x={-Math.PI / 2}
+        position-y={0.01}
+        scale={[ground.halo, ground.halo, 1]}
+        renderOrder={2}
+        visible={false}
+        raycast={noRaycast}
+      />
+      <mesh
+        ref={ringMesh}
+        geometry={ground.ring}
+        material={materials.ring}
+        rotation-x={-Math.PI / 2}
+        position-y={0.02}
+        renderOrder={3}
+        visible={false}
+        raycast={noRaycast}
+      />
+      <mesh geometry={model.solid} material={materials.solid} raycast={raycast} />
+      {model.screens && (
+        <mesh geometry={model.screens} material={materials.screens} raycast={raycast} />
+      )}
+      {model.lights && (
+        <mesh geometry={model.lights} material={materials.lights} raycast={raycast} />
+      )}
+      {model.stations.map(({ index, geometry }, i) => (
+        <mesh key={index} geometry={geometry} material={materials.stations[i]} raycast={raycast} />
       ))}
     </group>
   );

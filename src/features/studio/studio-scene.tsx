@@ -33,6 +33,7 @@ import {
 import { PerfOverlay } from "@/engine/scene/perf-overlay";
 import { type CompiledTimeline, compileTimeline, TimelineController } from "@/engine/timeline";
 import { usePreferencesStore } from "@/features/preferences/preferences-store";
+import { useResolvedTheme } from "@/features/preferences/use-resolved-theme";
 import type { FlowKind, StatusBadge } from "@/lib/scene-spec";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import type { StudioSessionState } from "./session-store";
@@ -147,6 +148,7 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
     [learningModule, sceneBounds],
   );
 
+  const theme = useResolvedTheme();
   const rig = useRef<CameraRigHandle>(null);
   const stage = useRef<HTMLDivElement>(null);
   const labelElements = useRef<LabelElements>(createLabelElements());
@@ -162,6 +164,7 @@ export default function StudioScene({ onContextLost }: { onContextLost: () => vo
           onPointerMissed={() => select(null)}
           onContextLost={onContextLost}
           statsRef={stage}
+          theme={theme}
         >
           <SceneView
             layout={learningModule.layout}

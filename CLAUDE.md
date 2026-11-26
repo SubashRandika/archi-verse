@@ -67,7 +67,7 @@ These decisions are confirmed and must be treated as product requirements.
 | Interactivity       | Both guided demonstrations and independent exploration |
 | Content depth       | Beginner and advanced explanations                     |
 | Progress storage    | Local browser storage                                  |
-| Theme               | Dark theme                                             |
+| Theme               | Dark (default) and light                               |
 | First concept       | API architecture                                       |
 | Device priority     | Desktop-first                                          |
 
@@ -713,7 +713,7 @@ The visual quality must be excellent.
 
 ## Design principles
 
-- Dark-first interface.
+- Dark-first interface (a light theme is available; dark stays the default).
 - Modern developer-tool aesthetic.
 - Clean 3D isometric visualization.
 - Clean typography.

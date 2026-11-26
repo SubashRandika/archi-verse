@@ -2,12 +2,13 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
  * Archiverse design tokens — "drafting plate" system (ADR-0007).
  *
- * Archiverse is dark-only, so tokens are defined once on :root.
+ * Dark is the default theme (tokens on :root); the light theme overrides them under
+ * [data-theme="light"] (ADR-0010). A boot script in <head> sets data-theme before first paint.
  * - Chrome (sidebar, inspector, dock) is quiet: hull + paper + graphite, no accent colour.
  * - The canvas ("plate") is ink: the brightest dark surface, so the stage reads first.
  * - Flow colours carry meaning only (request, response, warning, error, selection) and are
@@ -68,6 +69,27 @@
   --chart-5: var(--flow-selection);
 
   color-scheme: dark;
+}
+
+/* Light theme: a cool off-white workspace, white raised surfaces, ink text. Flow colours are
+   darker so they keep their contrast on light backgrounds. */
+:root[data-theme="light"] {
+  --hull: #eef2f8;
+  --hull-raised: #ffffff;
+  --hull-hover: #e3e9f3;
+  --ink: #f8fafd;
+  --rule: #d5ddea;
+  --rule-strong: #b8c4d8;
+  --paper: #1d2638;
+  --graphite: #5b6880;
+
+  --flow-request: #0ea5e9;
+  --flow-response: #16a34a;
+  --flow-warning: #d97706;
+  --flow-error: #e11d48;
+  --flow-selection: #6d28d9;
+
+  color-scheme: light;
 }
 
 @theme inline {

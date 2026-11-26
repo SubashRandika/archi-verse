@@ -1,8 +1,15 @@
-import type { SceneLayout, Vec3 } from "@/lib/scene-spec";
-import { labelAnchor, type ShapePart, SHAPES } from "../primitives/shapes";
+import type { ComponentKind, SceneLayout, Vec3 } from "@/lib/scene-spec";
+import { labelAnchor, partHalfSize, type ShapePart, SHAPES } from "../primitives/shapes";
+import {
+  mixHex,
+  roleColor,
+  SCENE_PALETTES,
+  type ScenePalette,
+  type SceneTheme,
+} from "../scene/palette";
 
 /**
- * A static isometric line drawing of any scene layout, from the same shapes and the same view
+ * A static isometric drawing of any scene layout, from the same shapes, colours and view
  * direction as the 3D scene. It is the studio's fallback when WebGL is unavailable or lost,
  * so every module gets one without extra work. No three.js: plain SVG.
  */
@@ -55,17 +62,44 @@ function boxFaces(center: Vec3, [w, h, d]: Vec3) {
   };
 }
 
-const FILL = { top: "#1a2b45", right: "#142338", front: "#101c2e" } as const;
+/** Opacity of components outside the step's focus. */
+const DIMMED = 0.35;
 
-function Part({ part, origin }: { part: ShapePart; origin: Vec3 }) {
+/** The three shades of a part: lit top, the front in its own colour, the shaded right side. */
+function shades(colour: string) {
+  return {
+    top: mixHex(colour, "#ffffff", 0.2),
+    front: colour,
+    right: mixHex(colour, "#000000", 0.2),
+  };
+}
+
+function Part({
+  part,
+  origin,
+  kind,
+  palette,
+}: {
+  part: ShapePart;
+  origin: Vec3;
+  kind: ComponentKind;
+  palette: ScenePalette;
+}) {
   const center = add(origin, part.at);
-  if (part.geometry === "box") {
-    const faces = boxFaces(center, part.size);
+  const fill = shades(roleColor(palette, kind, part.role));
+  if (part.geometry === "screen") {
+    const faces = boxFaces(center, [part.size[0], part.size[1], 0]);
+    return <polygon points={points(faces.front)} fill={palette.screen} />;
+  }
+  if (part.geometry !== "cylinder") {
+    // Rounded boxes are drawn as boxes.
+    const half = partHalfSize(part);
+    const faces = boxFaces(center, [half[0] * 2, half[1] * 2, half[2] * 2]);
     return (
       <>
-        <polygon points={points(faces.front)} fill={FILL.front} />
-        <polygon points={points(faces.right)} fill={FILL.right} />
-        <polygon points={points(faces.top)} fill={FILL.top} />
+        <polygon points={points(faces.front)} fill={fill.front} />
+        <polygon points={points(faces.right)} fill={fill.right} />
+        <polygon points={points(faces.top)} fill={fill.top} />
       </>
     );
   }
@@ -78,18 +112,23 @@ function Part({ part, origin }: { part: ShapePart; origin: Vec3 }) {
     <>
       <path
         d={`M${cx - rx} ${top}L${cx - rx} ${bottom}A${rx} ${ry} 0 0 0 ${cx + rx} ${bottom}L${cx + rx} ${top}Z`}
-        fill={FILL.right}
+        fill={fill.front}
       />
-      <ellipse cx={cx} cy={top} rx={rx} ry={ry} fill={FILL.top} />
+      <ellipse cx={cx} cy={top} rx={rx} ry={ry} fill={fill.top} />
     </>
   );
 }
 
-/** Painter's order: parts further from the camera first, then lower parts first. */
-const depth = (center: Vec3) => center[0] + center[2] + center[1] * 0.01;
+/** Painter's order between components: further from the camera first, then lower first. */
+const depth = (position: Vec3) => position[0] + position[2] + position[1] * 0.01;
+
+/** Keys are too small to read here; the dark key well under them stands in for the keyboard. */
+const drawn = (part: ShapePart) => part.role !== "key";
 
 export interface IsometricDrawingProps {
   layout: SceneLayout;
+  /** The page theme, which picks the scene palette. */
+  theme: SceneTheme;
   /** Components the current step is about; the others are drawn dimmed. */
   focus?: readonly string[];
   /** Accessible description of the drawing. */
@@ -97,19 +136,22 @@ export interface IsometricDrawingProps {
   className?: string;
 }
 
-export function IsometricDrawing({ layout, focus, label, className }: IsometricDrawingProps) {
+export function IsometricDrawing({
+  layout,
+  theme,
+  focus,
+  label,
+  className,
+}: IsometricDrawingProps) {
+  const palette = SCENE_PALETTES[theme];
   const byId = new Map(layout.components.map((component) => [component.id, component]));
   const focused = (id: string) => !focus || focus.length === 0 || focus.includes(id);
 
-  const parts = layout.components
-    .flatMap((component) =>
-      SHAPES[component.kind].map((part) => ({
-        component,
-        part,
-        depth: depth(add(component.position, part.at)),
-      })),
-    )
-    .sort((a, b) => a.depth - b.depth);
+  // Components back to front; each one's parts in declaration order, which is painter's order.
+  const components = [...layout.components].sort((a, b) => depth(a.position) - depth(b.position));
+  const parts = components.flatMap((component) =>
+    SHAPES[component.kind].filter(drawn).map((part) => ({ component, part })),
+  );
 
   const wires = layout.connections
     .filter((connection) => !connection.hidden)
@@ -133,10 +175,7 @@ export function IsometricDrawing({ layout, focus, label, className }: IsometricD
   // Fit the view box to every part and label.
   const extent = parts.flatMap(({ component, part }) => {
     const center = add(component.position, part.at);
-    const half: Vec3 =
-      part.geometry === "box"
-        ? [part.size[0] / 2, part.size[1] / 2, part.size[2] / 2]
-        : [part.radius, part.height / 2, part.radius];
+    const half = partHalfSize(part);
     return [add(center, half), add(center, [-half[0], -half[1], -half[2]])].map(project);
   });
   // Labels count with an estimated width (12px condensed text, about 6.5px per character).
@@ -165,23 +204,29 @@ export function IsometricDrawing({ layout, focus, label, className }: IsometricD
             key={connection.id}
             points={points(route)}
             fill="none"
-            stroke="var(--paper)"
-            strokeOpacity={lit ? 0.45 : 0.15}
-            strokeWidth="1.25"
+            stroke={palette.wire}
+            strokeOpacity={lit ? 1 : 0.4}
+            strokeWidth="1.5"
             strokeDasharray={connection.style === "dashed" ? "3 4" : undefined}
           />
         );
       })}
 
-      {parts.map(({ component, part }, index) => (
+      {components.map((component) => (
         <g
-          key={`${component.id}-${index}`}
-          stroke="var(--paper)"
-          strokeOpacity={focused(component.id) ? 0.9 : 0.3}
-          strokeWidth="1.1"
-          strokeLinejoin="round"
+          key={component.id}
+          data-component={component.id}
+          opacity={focused(component.id) ? undefined : DIMMED}
         >
-          <Part part={part} origin={component.position} />
+          {SHAPES[component.kind].filter(drawn).map((part, index) => (
+            <Part
+              key={index}
+              part={part}
+              origin={component.position}
+              kind={component.kind}
+              palette={palette}
+            />
+          ))}
         </g>
       ))}
 

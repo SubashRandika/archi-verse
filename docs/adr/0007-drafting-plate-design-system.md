@@ -1,7 +1,9 @@
 # ADR-0007: "Drafting plate" design system
 
 - **Status:** Accepted (Phase 2, 2026-11-24). Supersedes the UI colour/typography direction in
-  `docs/phase-0-plan.md`.
+  `docs/phase-0-plan.md`. Partly superseded by
+  [ADR-0010](./0010-glossy-toy-style-and-light-theme.md): these tokens are now the dark set, with
+  a light set alongside.
 
 ## Context
 

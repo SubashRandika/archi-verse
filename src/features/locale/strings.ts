@@ -18,6 +18,11 @@ const en = {
   completed: "Completed",
   markCompleted: "Mark this concept as completed",
   markNotStarted: "Mark as not started",
+  theme: "Theme",
+  themeDark: "Dark",
+  themeLight: "Light",
+  themeSystem: "System",
+  themeButton: (name: string) => `Theme, ${name}`,
 
   // Scene
   sceneComponents: "Scene components",
@@ -102,6 +107,11 @@ const si: StudioStrings = {
   completed: "ඉවරයි",
   markCompleted: "මේ concept එක ඉවරයි කියලා සලකුණු කරන්න",
   markNotStarted: "තවම පටන් ගත්තේ නැහැ කියලා සලකුණු කරන්න",
+  theme: "තේමාව",
+  themeDark: "අඳුරු",
+  themeLight: "ආලෝක",
+  themeSystem: "System එක අනුව",
+  themeButton: (name) => `තේමාව, ${name}`,
 
   sceneComponents: "Scene එකේ කොටස්",
   loadingScene: "3D scene එක load වෙනවා…",

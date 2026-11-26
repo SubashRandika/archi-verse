@@ -51,14 +51,15 @@ const layout: SceneLayout = {
       kind: "service",
       label: "Payments service",
       role: "Backend service",
-      position: [3.5, 0, 0],
+      // Far enough right that the breaker's badge below it clears this tile.
+      position: [4.2, 0, 0],
     },
     {
       id: "payments-db",
       kind: "database",
       label: "Payments DB",
       role: "Data store",
-      position: [3.5, 0, -3.6],
+      position: [4.2, 0, -3.6],
       labelPlacement: "right",
     },
   ],

@@ -45,3 +45,9 @@ next-env.d.ts
 /test-results/
 /blob-report/
 /playwright/.cache/
+
+# brainstorming mockups (visual companion)
+/.superpowers/
+
+# session handoff notes (scratch)
+/HANDOFF.md

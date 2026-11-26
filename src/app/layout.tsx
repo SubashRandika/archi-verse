@@ -5,7 +5,9 @@ import {
   IBM_Plex_Sans_Condensed,
   Noto_Sans_Sinhala,
 } from "next/font/google";
+import { ThemeSync } from "@/features/preferences/theme-sync";
 import { PersistedStateSync } from "@/features/progress/persisted-state";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 /*
@@ -54,18 +56,22 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "dark",
+  // ThemeSync updates it when the learner picks the light theme.
   themeColor: "#0c1420",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // Dark-only product: the `dark` class is static (shadcn components key off it).
+    // Dark by default; THEME_BOOT_SCRIPT may switch data-theme before paint, so React must not
+    // treat the changed attribute as a hydration mismatch.
     <html
       lang="en"
-      className={`dark ${plexSans.variable} ${plexCondensed.variable} ${plexMono.variable} ${notoSinhala.variable} h-full antialiased`}
+      data-theme="dark"
+      suppressHydrationWarning
+      className={`${plexSans.variable} ${plexCondensed.variable} ${plexMono.variable} ${notoSinhala.variable} h-full antialiased`}
     >
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <noscript>
           {/* Without JavaScript the shell never becomes "ready"; show it anyway. */}
           <style>{`[data-shell]{visibility:visible!important}`}</style>
@@ -73,6 +79,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="h-full overflow-hidden">
         <PersistedStateSync />
+        <ThemeSync />
         {children}
       </body>
     </html>
