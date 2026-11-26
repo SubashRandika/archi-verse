@@ -16,9 +16,15 @@ before writing code. It covers:
 3. **Beginner level**: the everyday analogy that will run through every step.
 4. **Advanced level**: the technical points, numbers and trade-offs worth showing.
 5. **Parts of the scene**: the components and connections. Reuse the existing shapes
-   (`client`, `gateway`, `service`, `database`, `identity`, `hop`) where they fit. A new kind is
-   a few boxes and cylinders in `src/engine/primitives/shapes.ts` (`COMPONENT_KINDS` in
-   `lib/scene-spec`), added only when no existing shape works.
+   (`client`, `mobile`, `gateway`, `service`, `database`, `identity`, `breaker`, `hop`) where
+   they fit. Add a new kind (`COMPONENT_KINDS` in `lib/scene-spec`) only when no existing shape
+   works. It needs (ADR-0010):
+   - a list of parts in `src/engine/primitives/shape-library.ts`, each with a role (`body`,
+     `trim`, `panel`, `dark`, `light`, …), declared in painter's order (back to front, bottom
+     to top), starting with a `tile`;
+   - a body colour in `KINDS` (`src/engine/scene/palette.ts`) that passes the palette tests:
+     clearly apart from the flow colours (request, response, warning, error, selection) and
+     from the other kinds. Never gold or amber, which read as a warning.
 6. **The 3D picture**: a sketch of the layout on the grid, which parts each step focuses on.
 7. **Animations and interactions**: per step, the beats (packets, work, statuses, badges) and
    what to click.
@@ -64,9 +70,10 @@ improvement: discuss it first.
 
 ## 4. Review it (step 12)
 
-- **Screenshots of every step and scenario step**, at the end of each step: no wire or label
-  crosses another label (use `labelPlacement`), focus and badges read clearly.
-- **The fallback**: with WebGL turned off, the drawing shows the same layout.
+- **Screenshots of every step and scenario step, in the dark and the light theme**, at the end
+  of each step: no wire or label crosses another label (use `labelPlacement` or a small
+  position change), focus and badges read clearly.
+- **The fallback**: with WebGL turned off, the drawing shows the same layout in both themes.
 - **Performance**: `npm run build && npm run check:bundles` (shell ≤ 333 KB, 3D chunk ≤ 300 KB).
   On real hardware, `/learn/<id>?perf` shows the frame rate (60 fps while animating) and draw
   calls.
