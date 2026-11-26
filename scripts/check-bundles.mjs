@@ -24,6 +24,7 @@ const PAGES = {
   "/learn/circuit-breaker (module)": "learn/circuit-breaker.html",
   "/learn/backend-for-frontend (module)": "learn/backend-for-frontend.html",
   "/learn/retry-and-exponential-backoff (module)": "learn/retry-and-exponential-backoff.html",
+  "/learn/idempotency (module)": "learn/idempotency.html",
   "/learn/cap-theorem (planned)": "learn/cap-theorem.html",
 };
 
