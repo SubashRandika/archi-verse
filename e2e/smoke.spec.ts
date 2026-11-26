@@ -12,7 +12,7 @@ test.describe("smoke", () => {
     await expect(page).toHaveURL(/\/learn\/api-gateway$/);
     await expect(page).toHaveTitle("API Gateway · Archiverse");
     await expect(page.getByRole("heading", { level: 1, name: "API Gateway" })).toBeVisible();
-    await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     expect(errors).toEqual([]);
   });
 });

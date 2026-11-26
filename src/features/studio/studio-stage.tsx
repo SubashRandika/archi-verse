@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { isWebGLAvailable } from "@/engine/scene/webgl";
 import { useStrings } from "@/features/locale/use-strings";
+import { useResolvedTheme } from "@/features/preferences/use-resolved-theme";
 import { useCurrentStep, useStudioModule, useStudioSessionStore } from "./studio-session";
 
 function SceneLoading() {
@@ -50,6 +51,7 @@ function StaticStage({ reason }: { reason: "unsupported" | "lost" }) {
   const learningModule = useStudioModule();
   const { step } = useCurrentStep();
   const t = useStrings();
+  const theme = useResolvedTheme();
   const parts = learningModule.layout.components
     .filter((component) => !component.decorative)
     .map((component) => component.label)
@@ -71,6 +73,7 @@ function StaticStage({ reason }: { reason: "unsupported" | "lost" }) {
         <Suspense fallback={null}>
           <IsometricDrawing
             layout={learningModule.layout}
+            theme={theme}
             focus={step.scene.focus}
             label={t.staticDrawing(parts)}
             className="h-full max-h-136 w-full max-w-240"

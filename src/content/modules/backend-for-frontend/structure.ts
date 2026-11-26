@@ -57,6 +57,8 @@ const layout: SceneLayout = {
       label: "Recommendations",
       role: "Backend service",
       position: [3.5, 0, 4],
+      // Above, it would sit on the Mobile BFF's wires to Users and Orders.
+      labelPlacement: "below",
     },
   ],
   connections: [

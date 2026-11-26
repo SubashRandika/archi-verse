@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DEFAULT_LOCALE, type Locale, LOCALES } from "@/lib/locale";
+import { DEFAULT_THEME, THEME_PREFERENCES, type ThemePreference } from "@/lib/theme";
 import { isOneOf, isRecord, isRecordOf, isString } from "@/lib/validate";
 
 /**
@@ -26,6 +27,7 @@ const DEFAULTS = {
   playbackSpeed: 1 as PlaybackSpeed,
   panelLayouts: {} as Readonly<Record<string, PanelLayout>>,
   lastConceptId: undefined as string | undefined,
+  theme: DEFAULT_THEME as ThemePreference,
 };
 
 const isPercent = (value: unknown): value is number =>
@@ -50,6 +52,7 @@ export function parsePersistedPreferences(value: unknown): typeof DEFAULTS {
       ? saved.panelLayouts
       : DEFAULTS.panelLayouts,
     lastConceptId: isString(saved.lastConceptId) ? saved.lastConceptId : undefined,
+    theme: isOneOf(THEME_PREFERENCES, saved.theme) ? saved.theme : DEFAULT_THEME,
   };
 }
 
@@ -60,11 +63,14 @@ interface PreferencesState {
   playbackSpeed: PlaybackSpeed;
   panelLayouts: Readonly<Record<string, PanelLayout>>;
   lastConceptId: string | undefined;
+  /** Colour theme: dark (default), light, or follow the system. */
+  theme: ThemePreference;
   setExplanationLevel: (level: ExplanationLevel) => void;
   setLocale: (locale: Locale) => void;
   setPlaybackSpeed: (speed: PlaybackSpeed) => void;
   setPanelLayout: (groupId: string, layout: PanelLayout) => void;
   setLastConceptId: (conceptId: string) => void;
+  setTheme: (theme: ThemePreference) => void;
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -77,18 +83,27 @@ export const usePreferencesStore = create<PreferencesState>()(
       setPanelLayout: (groupId, layout) =>
         set((state) => ({ panelLayouts: { ...state.panelLayouts, [groupId]: layout } })),
       setLastConceptId: (lastConceptId) => set({ lastConceptId }),
+      setTheme: (theme) => set({ theme }),
     }),
     {
       name: PREFERENCES_STORAGE_KEY,
       version: PREFERENCES_STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ explanationLevel, locale, playbackSpeed, panelLayouts, lastConceptId }) => ({
+      partialize: ({
         explanationLevel,
         locale,
         playbackSpeed,
         panelLayouts,
         lastConceptId,
+        theme,
+      }) => ({
+        explanationLevel,
+        locale,
+        playbackSpeed,
+        panelLayouts,
+        lastConceptId,
+        theme,
       }),
       migrate: (persisted) => persisted,
       merge: (persisted, current) => ({ ...current, ...parsePersistedPreferences(persisted) }),

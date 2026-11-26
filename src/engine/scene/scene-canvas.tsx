@@ -5,7 +5,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { SceneResourcesProvider } from "../primitives/resources";
 import { CAMERA_DISTANCE, ISO_DIRECTION } from "./framing";
-import { SCENE_COLORS } from "./palette";
+import { SCENE_PALETTES, type SceneTheme } from "./palette";
+import { ScenePaletteProvider } from "./palette-context";
 
 export interface SceneCanvasProps {
   readonly children: ReactNode;
@@ -18,6 +19,8 @@ export interface SceneCanvasProps {
    * (draw calls in the last frame), for tests and the performance overlay.
    */
   readonly statsRef?: RefObject<HTMLElement | null>;
+  /** Colour theme of the scene (the page's resolved theme). */
+  readonly theme: SceneTheme;
 }
 
 const INITIAL_POSITION = ISO_DIRECTION.clone().multiplyScalar(CAMERA_DISTANCE);
@@ -62,7 +65,9 @@ export function SceneCanvas({
   onPointerMissed,
   onContextLost,
   statsRef,
+  theme,
 }: SceneCanvasProps) {
+  const palette = SCENE_PALETTES[theme];
   return (
     <Canvas
       orthographic
@@ -77,24 +82,28 @@ export function SceneCanvas({
       }}
       onPointerMissed={onPointerMissed}
     >
-      <SceneResourcesProvider>
-        <ambientLight intensity={1.6} />
-        <directionalLight position={[4, 10, 7]} intensity={4.5} />
-        <Grid
-          args={[60, 60]}
-          cellSize={1}
-          cellThickness={0.6}
-          cellColor={SCENE_COLORS.grid}
-          sectionSize={5}
-          sectionThickness={1}
-          sectionColor={SCENE_COLORS.gridMajor}
-          infiniteGrid
-          fadeFrom={0}
-          fadeDistance={30}
-          fadeStrength={1.6}
-        />
-        {children}
-      </SceneResourcesProvider>
+      <ScenePaletteProvider theme={theme}>
+        <SceneResourcesProvider theme={theme}>
+          <hemisphereLight
+            args={[palette.hemisphere.sky, palette.hemisphere.ground, palette.hemisphere.intensity]}
+          />
+          <directionalLight position={[4, 10, 7]} intensity={palette.keyLight} />
+          <Grid
+            args={[60, 60]}
+            cellSize={1}
+            cellThickness={0.6}
+            cellColor={palette.grid}
+            sectionSize={5}
+            sectionThickness={1}
+            sectionColor={palette.gridMajor}
+            infiniteGrid
+            fadeFrom={0}
+            fadeDistance={30}
+            fadeStrength={1.6}
+          />
+          {children}
+        </SceneResourcesProvider>
+      </ScenePaletteProvider>
       {statsRef && <FrameStats statsRef={statsRef} />}
       {onContextLost && <ContextLossListener onContextLost={onContextLost} />}
     </Canvas>

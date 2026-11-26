@@ -64,8 +64,8 @@ const layout: SceneLayout = {
       label: "Orders service #1",
       role: "Backend service",
       position: [2.5, 0, 0],
-      // Above, the wire to Orders service #2 would cross it.
-      labelPlacement: "right",
+      // Above, the wire to Orders service #2 would cross it; to the right, it crowds Orders #2's tile.
+      labelPlacement: "below",
     },
     {
       id: "orders-2",
@@ -79,7 +79,7 @@ const layout: SceneLayout = {
       kind: "service",
       label: "Users service",
       role: "Backend service",
-      position: [2.5, 0, 3.4],
+      position: [2.5, 0, 4.3],
       // Above, it would sit on the gateway's wire to Orders service #1.
       labelPlacement: "below",
     },

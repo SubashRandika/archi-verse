@@ -1,8 +1,11 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
-import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+import type { ComponentKind } from "@/lib/scene-spec";
+import { SCENE_PALETTES, type SceneTheme } from "../scene/palette";
+import { buildKindModel, type KindModel } from "./model-builder";
+import { createScreenAtlas } from "./screen-atlas";
 
 /**
  * GPU resources shared by every object in one scene: three unit geometries, their outline
@@ -10,23 +13,11 @@ import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js
  */
 export interface SceneResources {
   readonly box: THREE.BoxGeometry;
-  readonly cylinder: THREE.CylinderGeometry;
   readonly plane: THREE.PlaneGeometry;
-  readonly boxEdges: LineSegmentsGeometry;
-  readonly cylinderEdges: LineSegmentsGeometry;
   /** Soft radial dot, for packet halos. */
   readonly halo: THREE.Texture;
   /** Soft round shadow, for component footprints. */
   readonly footprint: THREE.Texture;
-}
-
-const EDGE_THRESHOLD_DEGREES = 20;
-
-function edgesOf(geometry: THREE.BufferGeometry) {
-  const edges = new THREE.EdgesGeometry(geometry, EDGE_THRESHOLD_DEGREES);
-  const lines = new LineSegmentsGeometry().fromEdgesGeometry(edges);
-  edges.dispose();
-  return lines;
 }
 
 function radialTexture(size: number, stops: readonly [number, string][]) {
@@ -47,13 +38,9 @@ function radialTexture(size: number, stops: readonly [number, string][]) {
 
 function createResources(): SceneResources {
   const box = new THREE.BoxGeometry(1, 1, 1);
-  const cylinder = new THREE.CylinderGeometry(1, 1, 1, 48);
   return {
     box,
-    cylinder,
     plane: new THREE.PlaneGeometry(1, 1),
-    boxEdges: edgesOf(box),
-    cylinderEdges: edgesOf(cylinder),
     halo: radialTexture(64, [
       [0, "rgba(255,255,255,1)"],
       [0.25, "rgba(255,255,255,0.45)"],
@@ -71,14 +58,71 @@ function disposeResources(resources: SceneResources) {
   for (const resource of Object.values(resources)) resource.dispose();
 }
 
-const SceneResourcesContext = createContext<SceneResources | null>(null);
+/**
+ * Component models and the screen texture for one theme, built on first use and shared by
+ * every component of a kind. A theme change builds a new set and disposes the old one.
+ */
+class ThemedModels {
+  private readonly models = new Map<ComponentKind, KindModel>();
+  private atlas: THREE.Texture | undefined;
 
-export function SceneResourcesProvider({ children }: { children: ReactNode }) {
+  constructor(private readonly theme: SceneTheme) {}
+
+  model(kind: ComponentKind): KindModel {
+    let model = this.models.get(kind);
+    if (!model) {
+      model = buildKindModel(kind, SCENE_PALETTES[this.theme]);
+      this.models.set(kind, model);
+    }
+    return model;
+  }
+
+  screenAtlas(): THREE.Texture {
+    return (this.atlas ??= createScreenAtlas(SCENE_PALETTES[this.theme]));
+  }
+
+  dispose() {
+    for (const model of this.models.values()) model.dispose();
+    this.models.clear();
+    this.atlas?.dispose();
+  }
+}
+
+const SceneResourcesContext = createContext<SceneResources | null>(null);
+const ThemedModelsContext = createContext<ThemedModels | null>(null);
+
+export function SceneResourcesProvider({
+  theme,
+  children,
+}: {
+  theme: SceneTheme;
+  children: ReactNode;
+}) {
   const [resources] = useState(createResources);
   useEffect(() => () => disposeResources(resources), [resources]);
+  const models = useMemo(() => new ThemedModels(theme), [theme]);
+  useEffect(() => () => models.dispose(), [models]);
   return (
-    <SceneResourcesContext.Provider value={resources}>{children}</SceneResourcesContext.Provider>
+    <SceneResourcesContext.Provider value={resources}>
+      <ThemedModelsContext.Provider value={models}>{children}</ThemedModelsContext.Provider>
+    </SceneResourcesContext.Provider>
   );
+}
+
+function useThemedModels(): ThemedModels {
+  const models = useContext(ThemedModelsContext);
+  if (!models) throw new Error("Scene models must be used inside <SceneResourcesProvider>.");
+  return models;
+}
+
+/** The shared model of a component kind, in the current theme. */
+export function useKindModel(kind: ComponentKind): KindModel {
+  return useThemedModels().model(kind);
+}
+
+/** The texture with every screen picture, in the current theme. */
+export function useScreenAtlas(): THREE.Texture {
+  return useThemedModels().screenAtlas();
 }
 
 export function useSceneResources(): SceneResources {

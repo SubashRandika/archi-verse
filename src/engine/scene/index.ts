@@ -11,6 +11,12 @@ export {
   LabelProjector,
   type SceneLabel,
 } from "./labels";
-export { SCENE_COLORS } from "./palette";
+export {
+  type PartRole,
+  roleColor,
+  SCENE_PALETTES,
+  type ScenePalette,
+  type SceneTheme,
+} from "./palette";
 export { SceneCanvas, type SceneCanvasProps } from "./scene-canvas";
 export { SceneView, type SceneViewProps } from "./scene-view";

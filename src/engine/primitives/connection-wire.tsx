@@ -7,7 +7,7 @@ import { Line2 } from "three/addons/lines/Line2.js";
 import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import type { FlowKind, Vec3 } from "@/lib/scene-spec";
-import { SCENE_COLORS } from "../scene/palette";
+import { useScenePalette } from "../scene/palette-context";
 import type { WireChannel } from "../timeline";
 
 export type WireState = "idle" | "dimmed" | FlowKind;
@@ -32,6 +32,8 @@ export interface ConnectionWireProps {
  */
 export function ConnectionWire({ points, state, dashed, hidden, channel }: ConnectionWireProps) {
   const invalidate = useThree((s) => s.invalidate);
+  const palette = useScenePalette();
+  const additive = palette.additiveGlow;
   const lines = useMemo(() => {
     const geometry = new LineGeometry();
     geometry.setPositions(points.flat());
@@ -52,14 +54,14 @@ export function ConnectionWire({ points, state, dashed, hidden, channel }: Conne
         linewidth: 9,
         transparent: true,
         opacity: 0,
-        blending: THREE.AdditiveBlending,
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
         depthWrite: false,
       }),
     );
     core.raycast = noRaycast;
     glow.raycast = noRaycast;
     return { geometry, core, glow };
-  }, [points, dashed]);
+  }, [points, dashed, additive]);
 
   useEffect(
     () => () => {
@@ -73,13 +75,13 @@ export function ConnectionWire({ points, state, dashed, hidden, channel }: Conne
   const flowing = state === "request" || state === "response" || state === "error";
 
   useEffect(() => {
-    const colour = flowing ? SCENE_COLORS[state] : SCENE_COLORS.wire;
+    const colour = flowing ? palette[state] : palette.wire;
     lines.core.material.color.set(colour);
     lines.core.material.linewidth = flowing ? 2 : 1.5;
     lines.core.material.opacity = state === "dimmed" ? 0.35 : dashed && !flowing ? 0.7 : 1;
-    lines.glow.material.color.set(flowing ? colour : SCENE_COLORS.request);
+    lines.glow.material.color.set(flowing ? colour : palette.request);
     invalidate();
-  }, [state, flowing, dashed, lines, invalidate]);
+  }, [state, flowing, dashed, lines, invalidate, palette]);
 
   useFrame(() => {
     const signal = channel?.activity ?? 0;
