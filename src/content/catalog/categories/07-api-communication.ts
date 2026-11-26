@@ -86,6 +86,7 @@ export const apiCommunication: CategoryDefinition = {
     {
       id: "idempotency",
       title: "Idempotency",
+      moduleId: "idempotency",
       keywords: ["idempotency key", "idempotent"],
     },
     {
